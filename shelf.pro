@@ -83,7 +83,10 @@ win32 {
     VCPKG = $$(VCPKG_INSTALLATION_ROOT)
     isEmpty(VCPKG): VCPKG = C:/vcpkg
     INCLUDEPATH += $$VCPKG/installed/x64-windows/include
-    LIBS += -L$$VCPKG/installed/x64-windows/lib -lzlib
+    # The library is zlib.lib up to zlib 1.3 and z.lib from 1.4.
+    ZLIB_DIR = $$VCPKG/installed/x64-windows/lib
+    exists($$ZLIB_DIR/zlib.lib): LIBS += -L$$ZLIB_DIR -lzlib
+    else: LIBS += -L$$ZLIB_DIR -lz
     RC_ICONS = windows/shelf.ico
     QMAKE_TARGET_DESCRIPTION = Shelf
     QMAKE_TARGET_PRODUCT = Shelf

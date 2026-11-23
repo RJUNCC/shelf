@@ -50,7 +50,9 @@ jobs:
           modules: "qtwebengine qtpdf qtwebchannel qtpositioning"
       - uses: ilammy/msvc-dev-cmd@v1
       - name: zlib
-        run: vcpkg install zlib:x64-windows
+        run: |
+          vcpkg install zlib:x64-windows
+          Get-ChildItem "$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows\lib", "$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows\bin"
       - name: Build
         shell: cmd
         run: |
@@ -63,7 +65,8 @@ jobs:
           New-Item -ItemType Directory deploy | Out-Null
           Copy-Item build\release\shelf.exe deploy\
           windeployqt --release --qmldir src --no-translations deploy\shelf.exe
-          Copy-Item "$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows\bin\zlib1.dll" deploy\
+          # zlib1.dll up to zlib 1.3, z.dll from 1.4.
+          Copy-Item "$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows\bin\z*.dll" deploy\
       - name: Python for code questions (Pyodide)
         shell: pwsh
         run: |
