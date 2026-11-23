@@ -83,10 +83,12 @@ win32 {
     VCPKG = $$(VCPKG_INSTALLATION_ROOT)
     isEmpty(VCPKG): VCPKG = C:/vcpkg
     INCLUDEPATH += $$VCPKG/installed/x64-windows/include
-    # The library is zlib.lib up to zlib 1.3 and z.lib from 1.4.
-    ZLIB_DIR = $$VCPKG/installed/x64-windows/lib
-    exists($$ZLIB_DIR/zlib.lib): LIBS += -L$$ZLIB_DIR -lzlib
-    else: LIBS += -L$$ZLIB_DIR -lz
+    # The library is zlib.lib up to zlib 1.3 and libz.lib from 1.4.
+    ZLIB_LIB = $$first($$list($$files($$VCPKG/installed/x64-windows/lib/zlib.lib) \
+                                $$files($$VCPKG/installed/x64-windows/lib/libz.lib) \
+                                $$files($$VCPKG/installed/x64-windows/lib/z.lib)))
+    isEmpty(ZLIB_LIB): error("zlib not found in $$VCPKG; run: vcpkg install zlib:x64-windows")
+    LIBS += $$shell_quote($$ZLIB_LIB)
     RC_ICONS = windows/shelf.ico
     QMAKE_TARGET_DESCRIPTION = Shelf
     QMAKE_TARGET_PRODUCT = Shelf
