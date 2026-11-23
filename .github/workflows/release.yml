@@ -67,6 +67,11 @@ jobs:
           windeployqt --release --qmldir src --no-translations deploy\shelf.exe
           # zlib1.dll up to zlib 1.3, libz.dll from 1.4.
           Copy-Item "$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows\bin\*z*.dll" deploy\
+          # The Visual C++ runtime beside shelf.exe, so it starts on PCs that
+          # lack it without an administrator installing vc_redist.
+          Copy-Item "$env:VCToolsRedistDir\x64\Microsoft.VC*.CRT\*.dll" deploy\
+          Remove-Item deploy\vc_redist.x64.exe -ErrorAction SilentlyContinue
+          if (-not (Test-Path deploy\vcruntime140.dll)) { throw "Visual C++ runtime not copied" }
       - name: Python for code questions (Pyodide)
         shell: pwsh
         run: |
