@@ -1,0 +1,58 @@
+{
+  "%n book(s)": {
+    "one": "%n book",
+    "other": "%n books"
+  },
+  "Added %n book(s).": {
+    "one": "Added %n book.",
+    "other": "Added %n books."
+  },
+  "%n file(s) could not be added.": {
+    "one": "%n file could not be added.",
+    "other": "%n files could not be added."
+  },
+  "%n min left in chapter": {
+    "one": "%n min left in chapter",
+    "other": "%n min left in chapter"
+  },
+  "Ollama is running with %n model(s).": {
+    "one": "Ollama is running with %n model.",
+    "other": "Ollama is running with %n models."
+  },
+  "%n selected": {
+    "one": "%n selected",
+    "other": "%n selected"
+  },
+  "Marked %n book(s) finished.": {
+    "one": "Marked %n book finished.",
+    "other": "Marked %n books finished."
+  },
+  "Added %n book(s) to %1.": {
+    "one": "Added %n book to %1.",
+    "other": "Added %n books to %1."
+  },
+  "Remove %n book(s)?": {
+    "one": "Remove %n book?",
+    "other": "Remove %n books?"
+  },
+  "Make %n flashcard(s)": {
+    "one": "Make %n flashcard",
+    "other": "Make %n flashcards"
+  },
+  "Added %n flashcard(s). Review them from the library.": {
+    "one": "Added %n flashcard. Review it from the library.",
+    "other": "Added %n flashcards. Review them from the library."
+  },
+  "You reviewed %n card(s). The next ones come back when they are due.": {
+    "one": "You reviewed %n card. The next ones come back when they are due.",
+    "other": "You reviewed %n cards. The next ones come back when they are due."
+  },
+  "Your %n card(s) are not due yet.": {
+    "one": "Your card is not due yet.",
+    "other": "Your %n cards are not due yet."
+  },
+  "%n result(s)": {
+    "one": "%n result",
+    "other": "%n results"
+  }
+}

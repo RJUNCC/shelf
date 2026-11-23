@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Shelf
+GenericName=Book Reader
+Comment=An organized library and reader for EPUB and PDF books
+Exec=shelf %F
+Icon=shelf
+Terminal=false
+Categories=Office;Viewer;
+Keywords=ebook;epub;pdf;reader;library;books;
+MimeType=application/epub+zip;application/pdf;
+StartupWMClass=shelf

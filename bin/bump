@@ -1,0 +1,9 @@
+#!/bin/sh
+# bin/bump 0.2.0 — sets the version everywhere it is written (shelf.pro and
+# the PKGBUILD; the Windows installer takes it from shelf.pro).
+set -eu
+[ $# -eq 1 ] || { echo "usage: bin/bump <version>" >&2; exit 1; }
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+sed -i "s/^VERSION = .*/VERSION = $1/" "$ROOT/shelf.pro"
+sed -i "s/^pkgver=.*/pkgver=$1/; s/^pkgrel=.*/pkgrel=1/" "$ROOT/pkgbuild/PKGBUILD"
+echo "Version $1. Write release-notes/v$1.md, commit, then: git tag v$1 && git push --tags"

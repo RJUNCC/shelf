@@ -1,0 +1,65 @@
+<RCC>
+    <qresource prefix="/">
+        <file alias="AccentButton.qml">AccentButton.qml</file>
+        <file alias="AiSettings.qml">AiSettings.qml</file>
+        <file alias="AiPanel.qml">AiPanel.qml</file>
+        <file alias="AiOutlineCard.qml">AiOutlineCard.qml</file>
+        <file alias="BookCard.qml">BookCard.qml</file>
+        <file alias="BookCover.qml">BookCover.qml</file>
+        <file alias="ColorPicker.qml">ColorPicker.qml</file>
+        <file alias="CompactField.qml">CompactField.qml</file>
+        <file alias="ContinueCard.qml">ContinueCard.qml</file>
+        <file alias="EpubReader.qml">EpubReader.qml</file>
+        <file alias="HelpOverlay.qml">HelpOverlay.qml</file>
+        <file alias="Icon.qml">Icon.qml</file>
+        <file alias="LearnCourse.qml">LearnCourse.qml</file>
+        <file alias="ReviewPopup.qml">ReviewPopup.qml</file>
+        <file alias="SearchPopup.qml">SearchPopup.qml</file>
+        <file alias="PracticePopup.qml">PracticePopup.qml</file>
+        <file alias="ToolPanel.qml">ToolPanel.qml</file>
+        <file alias="GraphPopup.qml">GraphPopup.qml</file>
+        <file alias="AboutPopup.qml">AboutPopup.qml</file>
+        <file alias="LibraryPage.qml">LibraryPage.qml</file>
+        <file alias="Main.qml">Main.qml</file>
+        <file alias="NoteEditor.qml">NoteEditor.qml</file>
+        <file alias="NotesView.qml">NotesView.qml</file>
+        <file alias="OutlinePanel.qml">OutlinePanel.qml</file>
+        <file alias="PdfPagesView.qml">PdfPagesView.qml</file>
+        <file alias="PdfReader.qml">PdfReader.qml</file>
+        <file alias="ReaderBar.qml">ReaderBar.qml</file>
+        <file alias="Segmented.qml">Segmented.qml</file>
+        <file alias="SelectionBar.qml">SelectionBar.qml</file>
+        <file alias="SidebarItem.qml">SidebarItem.qml</file>
+        <file alias="TabStrip.qml">TabStrip.qml</file>
+        <file alias="Toast.qml">Toast.qml</file>
+        <file alias="ToolbarButton.qml">ToolbarButton.qml</file>
+        <file>icons/bookmark-filled.svg</file>
+        <file>icons/graph.svg</file>
+        <file>icons/bookmark.svg</file>
+        <file>icons/chevron-down.svg</file>
+        <file>icons/chevron-left.svg</file>
+        <file>icons/chevron-right.svg</file>
+        <file>icons/close.svg</file>
+        <file>icons/copy.svg</file>
+        <file>icons/export.svg</file>
+        <file>icons/fit-width.svg</file>
+        <file>icons/highlight.svg</file>
+        <file>icons/library.svg</file>
+        <file>icons/minus.svg</file>
+        <file>icons/notes.svg</file>
+        <file>icons/note.svg</file>
+        <file>icons/ask.svg</file>
+        <file>icons/outline.svg</file>
+        <file>icons/pages.svg</file>
+        <file>icons/plus.svg</file>
+        <file>icons/redo.svg</file>
+        <file>icons/search.svg</file>
+        <file>icons/text.svg</file>
+        <file>icons/trash.svg</file>
+        <file>icons/undo.svg</file>
+        <file>icons/view.svg</file>
+        <file>numbering.js</file>
+        <file>i18n/en.json</file>
+        <file>learn/shelf-guide.epub</file>
+    </qresource>
+</RCC>

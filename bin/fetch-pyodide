@@ -1,0 +1,30 @@
+#!/bin/sh
+# Downloads Pyodide (Python compiled to WebAssembly), which runs code
+# questions inside Shelf's sandboxed web view, into build/pyodide. It is
+# checked against a known checksum. Without it, Shelf still works; only
+# Python code questions say Python is missing.
+set -eu
+
+VERSION=0.26.4
+SHA256=04c2d423c77ec87025d2a61e7d82fe00355a8f24471d60e012da5b3731e32ea5
+FILES="pyodide.js pyodide.asm.js pyodide.asm.wasm pyodide-lock.json python_stdlib.zip"
+
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+DEST="$ROOT/build/pyodide"
+[ -f "$DEST/.version" ] && [ "$(cat "$DEST/.version")" = "$VERSION" ] && exit 0
+
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+echo "Fetching Pyodide $VERSION for Python code questions…"
+if ! curl -sSfL -o "$TMP/pyodide.tgz" "https://registry.npmjs.org/pyodide/-/pyodide-$VERSION.tgz"; then
+  echo "Could not download Pyodide; Python code questions will be unavailable." >&2
+  exit 0
+fi
+echo "$SHA256  $TMP/pyodide.tgz" | sha256sum -c --quiet -
+tar -xzf "$TMP/pyodide.tgz" -C "$TMP"
+mkdir -p "$DEST"
+for f in $FILES; do
+  install -m644 "$TMP/package/$f" "$DEST/$f"
+done
+install -m644 "$TMP/package/LICENSE" "$DEST/LICENSE" 2>/dev/null || true
+echo "$VERSION" > "$DEST/.version"

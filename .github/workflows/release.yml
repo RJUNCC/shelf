@@ -1,0 +1,108 @@
+# Builds Shelf for Arch Linux and Windows when a version tag (v1.2.3) is
+# pushed, and publishes them as a GitHub release with a SHA256SUMS file,
+# which Shelf's updater checks every download against.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  arch:
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    steps:
+      - name: Install build dependencies
+        run: |
+          pacman -Syu --noconfirm --needed git curl qt6-base qt6-declarative qt6-wayland qt6-webengine \
+            qt6-webchannel qt6-svg zlib xdg-desktop-portal
+      - uses: actions/checkout@v4
+      - name: Check the version matches the tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          want="${GITHUB_REF_NAME#v}"
+          grep -q "^VERSION = $want\$" shelf.pro || { echo "shelf.pro VERSION is not $want"; exit 1; }
+          grep -q "^pkgver=$want\$" pkgbuild/PKGBUILD || { echo "PKGBUILD pkgver is not $want"; exit 1; }
+      - name: Test
+        run: QT_QPA_PLATFORM=offscreen ./bin/test
+      - name: Build the package
+        run: |
+          useradd -m builder
+          chown -R builder "$GITHUB_WORKSPACE"
+          su builder -c "cd '$GITHUB_WORKSPACE/pkgbuild' && makepkg -f --nodeps"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: arch
+          path: pkgbuild/*.pkg.tar.zst
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.8.3"
+          arch: win64_msvc2022_64
+          modules: "qtwebengine qtpdf qtwebchannel qtpositioning"
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: zlib
+        run: vcpkg install zlib:x64-windows
+      - name: Build
+        shell: cmd
+        run: |
+          mkdir build && cd build
+          qmake ..\shelf.pro CONFIG+=release
+          nmake
+      - name: Gather Shelf and what it needs
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory deploy | Out-Null
+          Copy-Item build\release\shelf.exe deploy\
+          windeployqt --release --qmldir src --no-translations deploy\shelf.exe
+          Copy-Item "$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows\bin\zlib1.dll" deploy\
+      - name: Python for code questions (Pyodide)
+        shell: pwsh
+        run: |
+          $version = "0.26.4"
+          $sha = "04c2d423c77ec87025d2a61e7d82fe00355a8f24471d60e012da5b3731e32ea5"
+          Invoke-WebRequest "https://registry.npmjs.org/pyodide/-/pyodide-$version.tgz" -OutFile pyodide.tgz
+          if ((Get-FileHash pyodide.tgz -Algorithm SHA256).Hash.ToLower() -ne $sha) { throw "Pyodide checksum mismatch" }
+          tar -xzf pyodide.tgz
+          New-Item -ItemType Directory deploy\pyodide | Out-Null
+          foreach ($f in "pyodide.js","pyodide.asm.js","pyodide.asm.wasm","pyodide-lock.json","python_stdlib.zip") {
+            Copy-Item "package\$f" deploy\pyodide\
+          }
+      - name: Installer
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+          $version = (Select-String -Path shelf.pro -Pattern '^VERSION = (.+)$').Matches[0].Groups[1].Value
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DVersion=$version" "/DSource=..\deploy" windows\shelf.iss
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/*.exe
+
+  release:
+    needs: [arch, windows]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - name: Checksums
+        run: cd out && sha256sum * > SHA256SUMS && cat SHA256SUMS
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes=""
+          [ -f "release-notes/$GITHUB_REF_NAME.md" ] && notes="--notes-file release-notes/$GITHUB_REF_NAME.md"
+          gh release create "$GITHUB_REF_NAME" out/* --title "Shelf ${GITHUB_REF_NAME#v}" ${notes:---generate-notes}

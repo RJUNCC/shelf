@@ -1,0 +1,38 @@
+<RCC>
+    <qresource prefix="/web">
+        <file alias="foliate/comic-book.js">web/foliate/comic-book.js</file>
+        <file alias="foliate/dict.js">web/foliate/dict.js</file>
+        <file alias="foliate/epubcfi.js">web/foliate/epubcfi.js</file>
+        <file alias="foliate/epub.js">web/foliate/epub.js</file>
+        <file alias="foliate/fb2.js">web/foliate/fb2.js</file>
+        <file alias="foliate/fixed-layout.js">web/foliate/fixed-layout.js</file>
+        <file alias="foliate/footnotes.js">web/foliate/footnotes.js</file>
+        <file alias="foliate/mobi.js">web/foliate/mobi.js</file>
+        <file alias="foliate/overlayer.js">web/foliate/overlayer.js</file>
+        <file alias="foliate/paginator.js">web/foliate/paginator.js</file>
+        <file alias="foliate/progress.js">web/foliate/progress.js</file>
+        <file alias="foliate/quote-image.js">web/foliate/quote-image.js</file>
+        <file alias="foliate/search.js">web/foliate/search.js</file>
+        <file alias="foliate/text-walker.js">web/foliate/text-walker.js</file>
+        <file alias="foliate/tts.js">web/foliate/tts.js</file>
+        <file alias="foliate/uri-template.js">web/foliate/uri-template.js</file>
+        <file alias="foliate/vendor/fflate.js">web/foliate/vendor/fflate.js</file>
+        <file alias="foliate/vendor/zip.js">web/foliate/vendor/zip.js</file>
+        <file alias="foliate/view.js">web/foliate/view.js</file>
+        <file alias="tools/chem.js">web/tools/chem.js</file>
+        <file alias="tools/expr.js">web/tools/expr.js</file>
+        <file alias="tools/molecule.js">web/tools/molecule.js</file>
+        <file alias="tools/scenario.js">web/tools/scenario.js</file>
+        <file alias="tools/tool.html">web/tools/tool.html</file>
+        <file alias="tools/tool.js">web/tools/tool.js</file>
+        <file alias="tools/tool.css">web/tools/tool.css</file>
+        <file alias="tools/code.js">web/tools/code.js</file>
+        <file alias="tools/markov.js">web/tools/markov.js</file>
+        <file alias="tools/jsworker.js">web/tools/jsworker.js</file>
+        <file alias="tools/pyworker.js">web/tools/pyworker.js</file>
+        <file alias="graph.html">web/graph.html</file>
+        <file alias="graph.js">web/graph.js</file>
+        <file alias="reader.html">web/reader.html</file>
+        <file alias="reader.js">web/reader.js</file>
+    </qresource>
+</RCC>

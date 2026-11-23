@@ -1,0 +1,31 @@
+pkgname=shelf
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='An organized library and reader for EPUB and PDF books'
+arch=('x86_64' 'aarch64')
+license=('MIT' 'MPL-2.0')
+depends=('qt6-base' 'qt6-declarative' 'qt6-wayland' 'qt6-webengine' 'qt6-webchannel' 'qt6-svg' 'zlib' 'xdg-desktop-portal')
+optdepends=('ollama: AI outlines for PDFs without one (or ollama-cuda / ollama-rocm)'
+            'tesseract: read scanned pages that have no text when building outlines'
+            'tesseract-data-eng: English for tesseract')
+makedepends=('gcc' 'make' 'curl')
+source=()
+sha256sums=()
+
+build() {
+  cd "$startdir/.."
+  ./bin/build
+}
+
+package() {
+  cd "$startdir/.."
+  install -Dm755 build/shelf "$pkgdir/usr/bin/shelf"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 "$startdir/shelf.svg" "$pkgdir/usr/share/icons/hicolor/scalable/apps/shelf.svg"
+  install -Dm644 "$startdir/shelf.desktop" "$pkgdir/usr/share/applications/shelf.desktop"
+  # Python for code questions (Pyodide, MPL-2.0), fetched and checked by bin/build.
+  if [ -d build/pyodide ]; then
+    install -d "$pkgdir/usr/share/shelf/pyodide"
+    install -m644 build/pyodide/py* "$pkgdir/usr/share/shelf/pyodide/"
+  fi
+}
