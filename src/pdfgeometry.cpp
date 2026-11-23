@@ -89,15 +89,15 @@ int PdfGeometry::indexAt(int page, QPointF point) {
     // one under the point. At the end of a line, span leftwards and take
     // the last letter instead. Either must actually contain the point (or
     // come close), or the click was not on text.
-    auto near = [&](int index) {
+    auto isNear = [&](int index) {
         const QRectF box = m_document->getSelectionAtIndex(page, index, 1).boundingRectangle();
         return !box.isEmpty() && box.adjusted(-3, -3, 3, 3).contains(point);
     };
     const QPdfSelection right = m_document->getSelection(page, point, point + QPointF(12, 0));
-    if (right.isValid() && !right.text().isEmpty() && near(right.startIndex()))
+    if (right.isValid() && !right.text().isEmpty() && isNear(right.startIndex()))
         return right.startIndex();
     const QPdfSelection left = m_document->getSelection(page, point - QPointF(12, 0), point);
-    if (left.isValid() && !left.text().isEmpty() && near(left.endIndex()))
+    if (left.isValid() && !left.text().isEmpty() && isNear(left.endIndex()))
         return left.endIndex();
     return -1;
 }

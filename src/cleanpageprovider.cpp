@@ -456,23 +456,23 @@ QImage CleanPageProvider::sharpen(const QImage &input) {
 }
 
 double CleanPageProvider::skewAngle(const QImage &input) {
-    // Work small: a page about 500 pixels wide is plenty to see lines.
-    const QImage small = input.convertToFormat(QImage::Format_Grayscale8)
+    // Work shrunk: a page about 500 pixels wide is plenty to see lines.
+    const QImage shrunk = input.convertToFormat(QImage::Format_Grayscale8)
                               .scaledToWidth(std::min(500, input.width()), Qt::SmoothTransformation);
-    const int w = small.width(), h = small.height();
+    const int w = shrunk.width(), h = shrunk.height();
     if (w < 50 || h < 50)
         return 0;
     // Ink: clearly darker than the page's typical brightness.
     long long total = 0;
     for (int y = 0; y < h; ++y) {
-        const uchar *line = small.constScanLine(y);
+        const uchar *line = shrunk.constScanLine(y);
         for (int x = 0; x < w; ++x)
             total += line[x];
     }
     const int threshold = int(total / (qint64(w) * h) * 0.65);
     QList<QPoint> ink;
     for (int y = 0; y < h; ++y) {
-        const uchar *line = small.constScanLine(y);
+        const uchar *line = shrunk.constScanLine(y);
         for (int x = int(w * 0.05); x < int(w * 0.95); ++x)
             if (line[x] < threshold)
                 ink << QPoint(x, y);
@@ -588,26 +588,26 @@ QImage CleanPageProvider::flattenBackground(const QImage &input) {
     const int w = image.width(), h = image.height();
     if (w < 64 || h < 64)
         return image;
-    // A small copy, about 1/12 the size: each pixel then covers a few
+    // A shrunk copy, about 1/12 the size: each pixel then covers a few
     // letters. Taking the brightest of each neighbourhood (twice) removes
     // the text and leaves the paper; a blur smooths it.
     const int sw = std::max(8, w / 12), sh = std::max(8, h / 12);
-    QImage small = image.scaled(sw, sh, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+    QImage shrunk = image.scaled(sw, sh, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
     // A dark page (light text) has no paper to flatten.
     long long total = 0;
     for (int y = 0; y < sh; ++y)
         for (int x = 0; x < sw; ++x)
-            total += qGray(small.pixel(x, y));
+            total += qGray(shrunk.pixel(x, y));
     if (total / (qint64(sw) * sh) < 110)
         return image;
     for (int pass = 0; pass < 2; ++pass) {
-        QImage next = small;
+        QImage next = shrunk;
         for (int y = 0; y < sh; ++y) {
             for (int x = 0; x < sw; ++x) {
                 int r = 0, g = 0, b = 0;
                 for (int dy = -1; dy <= 1; ++dy)
                     for (int dx = -1; dx <= 1; ++dx) {
-                        const QRgb p = small.pixel(std::clamp(x + dx, 0, sw - 1), std::clamp(y + dy, 0, sh - 1));
+                        const QRgb p = shrunk.pixel(std::clamp(x + dx, 0, sw - 1), std::clamp(y + dy, 0, sh - 1));
                         r = std::max(r, qRed(p));
                         g = std::max(g, qGreen(p));
                         b = std::max(b, qBlue(p));
@@ -615,15 +615,15 @@ QImage CleanPageProvider::flattenBackground(const QImage &input) {
                 next.setPixel(x, y, qRgb(r, g, b));
             }
         }
-        small = next;
+        shrunk = next;
     }
-    const QImage background = small.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+    const QImage background = shrunk.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
     // The open paper's brightness, to tell a shadow (somewhat darker) from
     // a solid black box or photo (far darker), which must stay as it is.
     QList<int> levels;
     for (int y = 0; y < sh; ++y)
         for (int x = 0; x < sw; ++x)
-            levels << qGray(small.pixel(x, y));
+            levels << qGray(shrunk.pixel(x, y));
     std::sort(levels.begin(), levels.end());
     const double open = std::max(1, levels[levels.size() * 9 / 10]);
     // Divide out the paper, keeping its overall brightness: where the paper

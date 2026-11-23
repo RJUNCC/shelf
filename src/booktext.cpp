@@ -455,7 +455,7 @@ QStringList runningHeads(const QStringList &pages) {
 namespace {
 
 QString titleCase(const QString &title, const QSet<QString> &acronyms) {
-    static const QSet<QString> small{"a", "an", "and", "as", "at", "but", "by", "for", "in", "nor", "of",
+    static const QSet<QString> smallWords{"a", "an", "and", "as", "at", "but", "by", "for", "in", "nor", "of",
                                      "on", "or", "the", "to", "vs", "with"};
     static const QRegularExpression roman("^[IVXLC]+$");
     QStringList words = title.split(' ', Qt::SkipEmptyParts);
@@ -479,7 +479,7 @@ QString titleCase(const QString &title, const QSet<QString> &acronyms) {
         bool first = true;
         for (int k = 0; k < i && first; ++k)
             first = !words[k].isEmpty() && words[k][0].isDigit();
-        if (first || afterColon || !small.contains(cased))
+        if (first || afterColon || !smallWords.contains(cased))
             cased[0] = cased[0].toUpper();
         // Hyphenated words: "Self-Identity".
         for (int k = 1; k < cased.size(); ++k)
