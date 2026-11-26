@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Material
 import QtQuick.Layouts
+import "studymatch.js" as Match
 
 // A plan for the next exam, from the study review a teacher hands out. The
 // local AI reads the review's topics; Shelf finds each topic's slides by
@@ -15,7 +16,8 @@ Rectangle {
     property string workspaceId
     property var ws: ({})
     property var decks: []
-    signal openSlide(int deck, int slide, var words)
+    // A topic's section of slides: open `slide`, and read through `to`.
+    signal openSlide(int deck, int slide, var reading)
     signal focusRequested()
     signal explainSlide(int deck, int slide)
     signal practise(string title, var choices)
@@ -68,30 +70,31 @@ Rectangle {
         }
     }
 
-    // The slides that best fit a topic: its words in titles count most;
-    // a slide shown in steps counts once.
-    function match(topic) {
-        const words = topic.keywords.concat(topic.topic.toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length > 3))
-        const scored = []
-        decks.forEach((d, di) => {
-            let lastTitle = null
-            d.slides.forEach((s, si) => {
-                const title = (s.title || "").toLowerCase()
-                if (title && title === lastTitle)
-                    return
-                lastTitle = title
-                const text = (title + " " + (s.paragraphs || []).map(p => p.text).join(" ") + " " + (s.notes || "")).toLowerCase()
-                let score = 0
-                for (const w of words) {
-                    if (title.indexOf(w) >= 0) score += 3
-                    else if (text.indexOf(w) >= 0) score += 1
-                }
-                if (score >= 2)
-                    scored.push({ deckId: d.id, slide: si, score: score })
-            })
+    // The sections of slides that fit a topic (see studymatch.js).
+    function match(topic) { return Match.match(topic, decks) }
+
+    // Plans made before sections pointed at single slides; they're matched
+    // again once, keeping what's done.
+    function upgradePlan() {
+        if (!current || !current.topics || decks.length === 0)
+            return
+        const old = current.topics.some(t => (t.slides || []).some(x => x.to === undefined))
+        if (!old)
+            return
+        const next = JSON.parse(JSON.stringify(current))
+        next.topics.forEach(t => { t.slides = plan.match(t) })
+        workspaces.setPlan(workspaceId, next)
+    }
+    onCurrentChanged: Qt.callLater(upgradePlan)
+    onDecksChanged: Qt.callLater(upgradePlan)
+    Component.onCompleted: Qt.callLater(upgradePlan)
+
+    // Opens a section with what to read on it.
+    function openSection(deck, section, topic) {
+        openSlide(deck, section.slide, {
+            deckId: section.deckId, from: section.slide, to: section.to === undefined ? section.slide : section.to,
+            topic: topic.topic, terms: Match.weights(topic, decks)
         })
-        scored.sort((a, b) => b.score - a.score)
-        return scored.slice(0, 8).map(x => ({ deckId: x.deckId, slide: x.slide }))
     }
 
     // --- The days ------------------------------------------------------------
@@ -503,27 +506,43 @@ Rectangle {
                                         required property var modelData
                                         readonly property int deck: plan.deckIndex(modelData.deckId)
                                         readonly property var sl: deck >= 0 ? plan.decks[deck].slides[modelData.slide] : null
+                                        readonly property int last: modelData.to === undefined ? modelData.slide : modelData.to
+                                        readonly property int count: last - modelData.slide + 1
                                         visible: sl !== null && sl !== undefined
-                                        implicitWidth: Math.min(260, chipLabel.implicitWidth + 20)
+                                        implicitWidth: chipRow.implicitWidth + 20
                                         implicitHeight: 26
                                         radius: 13
                                         color: chipMouse.containsMouse ? Qt.alpha(theme.accent, 0.25) : "#24242b"
-                                        Label {
-                                            id: chipLabel
+                                        // The deck (shortened if long), then how much to read.
+                                        Row {
+                                            id: chipRow
                                             anchors.centerIn: parent
-                                            width: Math.min(implicitWidth, 240)
-                                            elide: Text.ElideRight
-                                            font.pixelSize: 11
-                                            text: parent.sl ? qsTr("%1 · %2").arg(parent.sl.title || qsTr("Slide %1").arg(modelData.slide + 1))
-                                                                            .arg(plan.decks[parent.deck].title) : ""
+                                            spacing: 6
+                                            Label {
+                                                width: Math.min(implicitWidth, 190)
+                                                elide: Text.ElideRight
+                                                font.pixelSize: 11
+                                                text: parent.parent.sl ? plan.decks[parent.parent.deck].title : ""
+                                            }
+                                            Label {
+                                                font.pixelSize: 11
+                                                font.weight: Font.DemiBold
+                                                color: theme.accent
+                                                text: !parent.parent.sl ? ""
+                                                    : parent.parent.count > 1 ? qsTr("slides %1–%2").arg(modelData.slide + 1).arg(parent.parent.last + 1)
+                                                    : qsTr("slide %1").arg(modelData.slide + 1)
+                                            }
                                         }
                                         MouseArea {
                                             id: chipMouse
                                             anchors.fill: parent
                                             hoverEnabled: true
                                             cursorShape: Qt.PointingHandCursor
-                                            onClicked: plan.openSlide(parent.deck, modelData.slide,
-                                                                      topicItem.topic.keywords.concat(topicItem.topic.topic.split(/\s+/).filter(w => w.length > 4)))
+                                            onClicked: plan.openSection(parent.deck, modelData, topicItem.topic)
+                                            ToolTip.visible: containsMouse
+                                            ToolTip.delay: 400
+                                            ToolTip.text: parent.sl ? (parent.sl.title || "") + (parent.count > 1
+                                                ? "\n" + qsTr("Read %n slide(s), with the parts about this topic highlighted.", "", parent.count) : "") : ""
                                         }
                                     }
                                 }

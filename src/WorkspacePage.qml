@@ -5,6 +5,7 @@ import QtQuick.Layouts
 import QtQuick.Pdf
 import QtQuick.Shapes
 import "numbering.js" as Numbering
+import "studymatch.js" as Match
 
 // A learning workspace: a course's slides on the left, the slide in the
 // middle, and on the right the book sections it links to, sections Shelf
@@ -485,7 +486,7 @@ FocusScope {
     property bool planOpen: false
     property string lessonKey: ""
     property var gathering: null     // {input, waiting: [{bookId, from}], texts: []}
-    onSlideIndexChanged: { closeLesson(); selection = null; Qt.callLater(revealCurrent) }
+    onSlideIndexChanged: { closeLesson(); selection = null; Qt.callLater(revealCurrent); Qt.callLater(refreshPassage) }
     onDeckIndexChanged: { closeLesson(); setOpen(deckIndex, true) }
     function closeLesson() {
         if (lessonOpen)
@@ -737,17 +738,42 @@ FocusScope {
         findText = ""
         page.takeKeys()
     }
-    // A slide opened from the study plan, with the topic's words lit up:
-    // the first of them that the slide holds.
-    function showSlideFor(d, i, words) {
+    // A section opened from the study plan: {deckId, from, to, topic,
+    // terms}. While a slide of it is shown, a bar says how far through it
+    // you are, and the lines about the topic are highlighted.
+    property var reading: null
+    readonly property bool inReading: !!(reading && deck && deck.id === reading.deckId
+                                         && slideIndex >= reading.from && slideIndex <= reading.to)
+    property var passageRects: []
+    // The slide's title is about the topic: read all of it.
+    property bool wholeSlide: false
+    function showSlideFor(d, i, section) {
+        reading = section || null
+        closeFind()
         showSlide(d, i, false)
-        const text = slideText(decks[d].slides[i]).toLowerCase()
-        const hit = (words || []).find(w => w && text.indexOf(String(w).toLowerCase()) >= 0)
-        if (hit && decks[d].pdf) {
-            findText = hit
-            findOpen = true
-        }
+        refreshPassage()
     }
+    function refreshPassage() {
+        wholeSlide = inReading && Match.titleOnTopic(slides[slideIndex] ? slides[slideIndex].title : "", reading.terms || [])
+        if (!inReading || wholeSlide || !deck.pdf || !deck.pdfPath) {
+            passageRects = []
+            return
+        }
+        const lines = pdfGeometry.lines(deck.pdfPath, slideIndex)
+        // Each line's corners into a box, as for the selection.
+        const out = []
+        for (const i of Match.linesToRead(lines, reading.terms || []))
+            for (const flat of lines[i].rects) {
+                let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9
+                for (let k = 0; k + 1 < flat.length; k += 2) {
+                    x0 = Math.min(x0, flat[k]); x1 = Math.max(x1, flat[k])
+                    y0 = Math.min(y0, flat[k + 1]); y1 = Math.max(y1, flat[k + 1])
+                }
+                out.push({ x: x0, y: y0, width: x1 - x0, height: y1 - y0 })
+            }
+        passageRects = out
+    }
+    onInReadingChanged: refreshPassage()
 
     // --- Keys -----------------------------------------------------------
 
@@ -1542,6 +1568,84 @@ FocusScope {
                     anchors.fill: parent
                     anchors.margins: 20
                     spacing: 12
+                    // Reading a study-plan section: where you are in it,
+                    // and the way on.
+                    Rectangle {
+                        visible: page.inReading
+                        Layout.fillWidth: true
+                        implicitHeight: readingRow.implicitHeight + 12
+                        radius: Math.min(8, theme.radius)
+                        color: Qt.alpha(theme.accent, 0.12)
+                        border.color: Qt.alpha(theme.accent, 0.35)
+                        readonly property int total: page.reading ? page.reading.to - page.reading.from + 1 : 1
+                        readonly property int at: page.reading ? page.slideIndex - page.reading.from + 1 : 1
+                        RowLayout {
+                            id: readingRow
+                            anchors.fill: parent
+                            anchors.leftMargin: 12
+                            anchors.rightMargin: 6
+                            spacing: 10
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 1
+                                Label {
+                                    Layout.fillWidth: true
+                                    elide: Text.ElideRight
+                                    font.pixelSize: 13
+                                    font.weight: Font.DemiBold
+                                    text: page.reading ? page.reading.topic : ""
+                                }
+                                Label {
+                                    Layout.fillWidth: true
+                                    elide: Text.ElideRight
+                                    font.pixelSize: 12
+                                    opacity: 0.8
+                                    text: page.reading
+                                          ? (readingRow.parent.total > 1
+                                                ? qsTr("Slide %1 of %2 (slides %3–%4)").arg(readingRow.parent.at).arg(readingRow.parent.total)
+                                                      .arg(page.reading.from + 1).arg(page.reading.to + 1)
+                                                : qsTr("Just this slide"))
+                                            + " · " + (page.wholeSlide ? qsTr("read all of this slide")
+                                                       : page.passageRects.length > 0 ? qsTr("read the highlighted lines")
+                                                       : qsTr("background for this topic"))
+                                          : ""
+                                }
+                            }
+                            // A bar of the section's slides, filled up to here.
+                            Row {
+                                spacing: 2
+                                visible: parent.parent.total > 1 && parent.parent.total <= 15
+                                Repeater {
+                                    model: parent.visible ? readingRow.parent.total : 0
+                                    delegate: Rectangle {
+                                        required property int index
+                                        width: 8; height: 8; radius: 4
+                                        color: index < readingRow.parent.at ? theme.accent : "#3a3a42"
+                                    }
+                                }
+                            }
+                            Button {
+                                flat: true
+                                visible: parent.parent.at < parent.parent.total
+                                text: qsTr("Next ›")
+                                onClicked: page.go(1)
+                            }
+                            Button {
+                                flat: true
+                                visible: parent.parent.at >= parent.parent.total
+                                text: qsTr("Done ✓")
+                                ToolTip.visible: hovered
+                                ToolTip.text: qsTr("Back to the study plan")
+                                onClicked: { page.reading = null; page.planOpen = true }
+                            }
+                            ToolButton {
+                                text: "✕"
+                                ToolTip.visible: hovered
+                                ToolTip.text: qsTr("Stop following this section")
+                                onClicked: page.reading = null
+                            }
+                        }
+                    }
                     Item {
                         id: stage
                         Layout.fillWidth: true
@@ -1640,11 +1744,30 @@ FocusScope {
                             border.color: "#2c2c33"
                             border.width: page.deck && page.deck.pdf ? 0 : 1
                             clip: true
+                            // All of this slide is on the study-plan topic.
+                            Rectangle {
+                                z: 4
+                                anchors.fill: parent
+                                visible: page.inReading && page.wholeSlide
+                                color: "transparent"
+                                border.width: 3
+                                border.color: "#e0a800"
+                            }
                             PdfPageImage {
+                                id: slideImage
                                 visible: !!(page.deck && page.deck.pdf)
                                 anchors.fill: parent
                                 document: visible ? pdf : null
                                 currentFrame: page.slideIndex
+                                // Qt ignores a frame past the end of the deck
+                                // still loaded, so opening slide 40 of another
+                                // deck from a 32-slide one (from the study plan)
+                                // would stay on the first page; once the new
+                                // deck is in, the slide is asked for again.
+                                onStatusChanged: if (status === Image.Ready && currentFrame !== page.slideIndex) {
+                                    currentFrame = page.slideIndex
+                                    currentFrame = Qt.binding(() => page.slideIndex)
+                                }
                                 asynchronous: true
                                 retainWhileLoading: true
                                 fillMode: Image.PreserveAspectFit
@@ -1659,6 +1782,28 @@ FocusScope {
                                 anchors.fill: parent
                                 readonly property real pageScale: pdf.status === PdfDocument.Ready
                                     ? width / Math.max(1, pdf.pagePointSize(page.slideIndex).width) : 1
+                                // What to read for the study-plan topic: soft
+                                // bands with a marker down their left edge.
+                                Repeater {
+                                    model: page.inReading ? page.passageRects : []
+                                    delegate: Rectangle {
+                                        required property var modelData
+                                        x: modelData.x * textLayer.pageScale - 3
+                                        y: modelData.y * textLayer.pageScale - 1
+                                        width: modelData.width * textLayer.pageScale + 6
+                                        height: modelData.height * textLayer.pageScale + 2
+                                        radius: 2
+                                        color: "#40f5d547"
+                                        Rectangle {
+                                            anchors.right: parent.left
+                                            anchors.rightMargin: 3
+                                            width: 3
+                                            height: parent.height
+                                            radius: 1.5
+                                            color: "#e0a800"
+                                        }
+                                    }
+                                }
                                 Shape {
                                     anchors.fill: parent
                                     visible: page.findText !== ""

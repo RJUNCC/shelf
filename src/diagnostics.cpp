@@ -25,8 +25,12 @@ QMutex g_logMutex;
 QtMessageHandler g_previous = nullptr;
 
 void writeLog(QtMsgType type, const QMessageLogContext &context, const QString &message) {
+    // Still to the terminal: Qt's own handler, or (when that's the default,
+    // which Qt hands back as null) stderr in its usual form.
     if (g_previous)
         g_previous(type, context, message);
+    else
+        std::fprintf(stderr, "%s\n", qPrintable(qFormatLogMessage(type, context, message)));
     // Debug chatter stays out; warnings and worse are what help.
     if (type == QtDebugMsg || type == QtInfoMsg)
         return;

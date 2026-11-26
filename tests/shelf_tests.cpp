@@ -737,6 +737,43 @@ private slots:
         QVERIFY(!request.error().isEmpty());
     }
 
+    // Study-plan sections: a word on every slide ("cloud") counts for
+    // little, neighbouring slides on the topic form one section, a topic no
+    // slide is about gets none, and the lines with its words are the ones
+    // to read.
+    void studySectionsAreFound() {
+        QFile file(QStringLiteral(SOURCE_DIR) + "/studymatch.js");
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        QString script = QString::fromUtf8(file.readAll());
+        script.remove(".pragma library");
+        QJSEngine engine;
+        engine.evaluate(script);
+        QVERIFY(!engine.hasError());
+        engine.evaluate(R"(
+            function slide(title, ...lines) { return { title: title, paragraphs: lines.map(t => ({ text: t })) } }
+            var decks = [{ id: "a", slides: [
+                slide("Cloud course", "Cloud computing for data"),
+                slide("Cloud history", "Cloud began with timesharing"),
+                slide("HDFS NameNode", "The NameNode keeps cloud metadata", "Blocks live on DataNodes"),
+                slide("HDFS NameNode", "The NameNode keeps cloud metadata", "Blocks live on DataNodes", "Checkpoints"),
+                slide("DataNode heartbeats", "Each DataNode reports to the NameNode in the cloud"),
+                slide("Cloud pricing", "Pay as you go in the cloud"),
+                slide("Cloud regions", "Regions are far apart in the cloud"),
+                slide("Spark RDDs", "Resilient distributed datasets in the cloud")]}]
+            var topic = { topic: "HDFS metadata", keywords: ["namenode", "datanode", "cloud"] }
+            var terms = weights(topic, decks)
+            var sections = match(topic, decks, terms)
+        )");
+        QVERIFY(!engine.hasError());
+        QVERIFY(engine.evaluate("terms.find(x => x.t === 'cloud').generic").toBool());
+        QCOMPARE(engine.evaluate("JSON.stringify(sections)").toString(), QString(R"([{"deckId":"a","slide":2,"to":4}])"));
+        QCOMPARE(engine.evaluate("match({ topic: 'IAM roles', keywords: ['iam', 'role policy'] }, decks).length").toInt(), 0);
+        QCOMPARE(engine.evaluate(R"(JSON.stringify(linesToRead([{ text: "Cloud regions" }, { text: "The NameNode keeps" },
+            { text: "metadata for files" }, { text: "Pay as you go." }], terms)))").toString(), QString("[1,2]"));
+        QVERIFY(engine.evaluate("titleOnTopic('HDFS NameNode', terms)").toBool());
+        QVERIFY(!engine.evaluate("titleOnTopic('Cloud pricing', terms)").toBool());
+    }
+
     void outlinesAreNumbered() {
         QFile file(QStringLiteral(SOURCE_DIR) + "/numbering.js");
         QVERIFY(file.open(QIODevice::ReadOnly));

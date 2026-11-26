@@ -43,6 +43,7 @@
         <file alias="Toast.qml">Toast.qml</file>
         <file alias="ShelfPicker.qml">ShelfPicker.qml</file>
         <file alias="TipCard.qml">TipCard.qml</file>
+        <file alias="studymatch.js">studymatch.js</file>
         <file alias="ToolbarButton.qml">ToolbarButton.qml</file>
         <file>icons/bookmark-filled.svg</file>
         <file>icons/graph.svg</file>

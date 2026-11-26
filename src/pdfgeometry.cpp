@@ -67,6 +67,27 @@ QString PdfGeometry::pageText(const QString &path, int page) {
     return m_text;
 }
 
+QVariantList PdfGeometry::lines(const QString &path, int page) {
+    const QString text = pageText(path, page);
+    QVariantList out;
+    int start = 0;
+    for (int i = 0; i <= text.size(); ++i) {
+        if (i < text.size() && text[i] != '\n' && text[i] != '\r')
+            continue;
+        if (i > start) {
+            const QString line = text.mid(start, i - start).simplified();
+            if (!line.isEmpty()) {
+                const QPdfSelection s = m_document->getSelectionAtIndex(page, start, i - start);
+                const QVariantList rects = lineRects(s.bounds());
+                if (!rects.isEmpty())
+                    out << QVariantMap{{"text", line}, {"rects", rects}};
+            }
+        }
+        start = i + 1;
+    }
+    return out;
+}
+
 bool PdfGeometry::hasTextLayer(const QString &path) {
     if (!open(path))
         return false;

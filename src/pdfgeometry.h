@@ -26,6 +26,9 @@ public:
     // Whether the PDF carries real text (not just a watermark): sampled
     // from pages through the book. Scans without it have nothing to reflow.
     Q_INVOKABLE bool hasTextLayer(const QString &path);
+    // The page's text a line at a time, in reading order: [{text, rects}],
+    // rects as select() gives them (page points).
+    Q_INVOKABLE QVariantList lines(const QString &path, int page);
 
     // Selects text on a page, between two points in PDF points, snapped out
     // to whole words so a drag that starts just before a word's first letter
