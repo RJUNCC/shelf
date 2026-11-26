@@ -8,12 +8,12 @@ Rectangle {
     id: toast
     signal dismissed()
 
-    // An optional action ("Undo") runs `onAction` when clicked.
-    property var onAction: null
-    function show(message, actionLabel, onAction) {
+    // An optional action ("Undo") runs `callback` when clicked.
+    property var callback: null
+    function show(message, actionLabel, run) {
         label.text = message
         action.text = actionLabel || ""
-        toast.onAction = onAction || null
+        toast.callback = run || null
         visible = true
         timer.restart()
     }
@@ -42,7 +42,7 @@ Rectangle {
             flat: true
             Material.foreground: theme.accent
             onClicked: {
-                const run = toast.onAction
+                const run = toast.callback
                 toast.visible = false
                 toast.dismissed()
                 if (run)

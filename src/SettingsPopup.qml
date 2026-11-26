@@ -76,7 +76,7 @@ Popup {
                             anchors.rightMargin: 10
                             anchors.verticalCenter: parent.verticalCenter
                             width: 7; height: 7; radius: 3.5
-                            visible: color !== Qt.color("transparent")
+                            visible: color.a > 0
                             color: modelData.key === "about" && (updater.state === "available" || updater.state === "installed") ? theme.accent
                                  : modelData.key === "ai" && ollama.status !== "ready" && ollama.status !== "checking" ? "#f5b347"
                                  : "transparent"

@@ -23,7 +23,7 @@ An organized library and reader for EPUB and PDF books, built for Omarchy.
   finished, or remove them.
 - **Numbered outlines.** Every outline is numbered — 14, 14.2, 14.2.1 —
   keeping the numbers a book prints and filling in the rest.
-- **Learn Shelf**, in the library's sidebar: a five-minute course with a
+- **Learn Shelf** (*Settings › Help*, or the ? in the library panel): a five-minute course with a
   practice book to try everything on.
 - **Clean up scanned pages** (PDF *View* menu): *Clean* turns yellowed or
   gray paper white and the text dark; *Clean + sharpen* also crisps up blurry
@@ -150,7 +150,7 @@ An organized library and reader for EPUB and PDF books, built for Omarchy.
   two books becomes one node, shown in teal). Hover to see what connects,
   click for details, open any passage in its book. It moves only while it
   settles, then costs nothing.
-- **Updates** (*About Shelf* in the sidebar): Shelf can check GitHub once a
+- **Updates** (*Settings › Updates and about*): Shelf can check GitHub once a
   day for a new version, only if you turn that on, or when you press *Check
   now*. Updating verifies the download against the release's SHA-256
   checksums, then installs it with pacman (asking for your password) on
@@ -161,8 +161,31 @@ An organized library and reader for EPUB and PDF books, built for Omarchy.
 - **The library in a panel beside every tab**: your books (searched, and
   filtered by shelf or collection), your workspaces, and the study tools sit
   in a panel beside books, PDFs and workspaces; Ctrl+B or the button at the
-  start of the tab strip folds it away. With nothing open, the home page
-  shows *Continue reading* and every cover.
+  start of the tab strip folds it away. The **Library tab**, always first,
+  shows *Continue reading* and every cover in a big view.
+- **Collections** are picked from the list at the top of the library; each
+  has a delete button there (or right-click it), and the message that
+  follows offers *Undo*. Books in a deleted collection stay in the library.
+- **Settings** (⚙ in the library panel, or Ctrl+,) in one window: local AI
+  and voices, backup and export, updates, and help.
+- **Backups** (*Settings › Backup and export*): *Back up now* makes one file
+  with your library, reading positions, highlights, notes, flashcards,
+  workspaces, outlines and settings, optionally with the books themselves,
+  in a folder you choose (a OneDrive or Google Drive folder works well).
+  Turn on weekly backups to have one made automatically (the newest five
+  are kept). *Restore a backup* brings one back on this or another
+  computer: Shelf starts again with it, and what you had is kept aside in
+  a `shelf-before-restore-…` folder, not deleted. Downloaded voices are
+  left out; they download again.
+- **Flashcards to Anki or Quizlet**: export every card as a text file Anki
+  imports (with a deck per book and formulas kept) or Quizlet pastes in.
+- **Something wrong?** *Settings › Help › Copy diagnostic info* copies
+  Shelf's version, your system, the local AI and voice, and Shelf's recent
+  warnings, to send to whoever helps you. Shelf never sends it itself.
+- **Tips**: each part of Shelf explains itself in a short card the first
+  time; *Settings › Help* brings them back.
+- **Light on memory**: a tab you haven't looked at for 20 minutes lets go of
+  its reader and opens again where you left it.
 - **Tabs like a browser's.** Drag a book's tab to move it; right-click it to
   close it, the others, or those to its right.
 - **Your place is kept** for every book and restored when you reopen it.
@@ -252,8 +275,10 @@ the repository named `SHELF_REPO` in `shelf.pro`.
 
 ## Local AI (optional)
 
-Install Ollama, then pick a model under *Local AI* in the library's sidebar
-(Shelf downloads it), and press *Build outline* in a PDF's Outline tab:
+Install Ollama, then pick a model in *Settings › Local AI and voices*
+(Shelf downloads it), and press *Build outline* in a PDF's Outline tab. Until
+Ollama is running, that page shows the steps and ticks each off by itself;
+on Windows it links the installer and can start Ollama.
 
 ```sh
 sudo pacman -S ollama-cuda tesseract tesseract-data-eng   # or ollama / ollama-rocm
@@ -261,7 +286,7 @@ sudo systemctl enable --now ollama
 ollama pull qwen3:8b
 ```
 
-*Local AI* in the library's sidebar shows whether Ollama is installed and
+*Settings › Local AI and voices* shows whether Ollama is installed and
 running, picks the model, tests it, and chooses between the graphics card
 (fast) and the processor only (leaves the graphics card free). Any installed
 chat model works. Set `SHELF_OLLAMA_URL` to use Ollama on another address.
@@ -276,7 +301,6 @@ chat model works. Set `SHELF_OLLAMA_URL` to use Ollama on another address.
 - Workspaces, with their copies of the slides: `~/.local/share/shelf/workspaces/`.
 - Lessons: `~/.cache/shelf/lessons/`; their speech: `~/.cache/shelf/speech/`.
 - The voices: `~/.local/share/shelf/voice/`.
-- Flashcards: `~/.local/share/shelf/cards.json`.
 - Downloaded updates: `~/.cache/shelf/updates/`.
 - Covers: `~/.cache/shelf/covers/`, safe to delete; they come back when a book
   is added again.
@@ -286,6 +310,13 @@ chat model works. Set `SHELF_OLLAMA_URL` to use Ollama on another address.
 - Text versions: `~/.local/share/shelf/text versions/`.
 - AI outlines: `~/.local/share/shelf/outlines/`, one file per book; the page
   text they were built from is cached in `~/.cache/shelf/text/`.
+- Books restored from a backup that weren't on this computer:
+  `~/.local/share/shelf/books/`.
+- Backups: `~/Documents/Shelf backups/` unless you choose another folder.
+- Shelf's warning log: `~/.cache/shelf/shelf.log` (kept under about 1 MB).
+
+On Windows the same folders are under `%LOCALAPPDATA%` (data in
+`%LOCALAPPDATA%\shelf`, caches in `%LOCALAPPDATA%\cache\shelf`).
 
 ## License
 

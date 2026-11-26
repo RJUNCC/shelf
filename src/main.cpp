@@ -54,7 +54,6 @@ int main(int argc, char *argv[]) {
     QGuiApplication app(argc, argv);
     app.setApplicationName("shelf");
     app.setApplicationVersion(SHELF_VERSION);
-    Diagnostics::installLog();
 
     // Books from the command line (the file manager passes them here), made
     // absolute now because a running instance has a different working dir.
@@ -88,6 +87,7 @@ int main(int argc, char *argv[]) {
         return 0;
     }
     instance.listen();
+    Diagnostics::installLog();
 
     // A backup chosen to restore goes in place before anything is loaded.
     const QString restored = Backup::applyPending();

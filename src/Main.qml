@@ -172,7 +172,7 @@ ApplicationWindow {
     // The library tab, with the whole library in a big view.
     function showLibrary() { showTab(0) }
 
-    function showToast(message, actionLabel, onAction) { toast.show(message, actionLabel, onAction) }
+    function showToast(message, actionLabel, run) { toast.show(message, actionLabel, run) }
 
     // Deletes a collection at once (its books stay in the library); the
     // toast's Undo brings it back with the same books.
