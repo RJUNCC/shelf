@@ -31,7 +31,7 @@ Popup {
     function voiceName() {
         for (const m of voice.models)
             for (const sp of m.speakers)
-                if ((m.id === "piper" ? sp.voice : m.id + "/" + sp.voice) === voice.current)
+                if (m.id + "/" + sp.voice === voice.current)
                     return m.label + ": " + sp.label
         return ""
     }
@@ -295,7 +295,7 @@ Popup {
                 wrapMode: Text.WordWrap
                 font.pixelSize: 12
                 opacity: 0.7
-                text: qsTr("Explanations can be read aloud by a voice that runs on this computer. Pick a voice model, then one of its voices; each model downloads once. Kokoro HD sounds the most like a person.")
+                text: qsTr("Explanations can be read aloud by a voice that runs on this computer. Pick a voice model, then one of its voices; each model downloads once. Kokoro HD sounds the most like a person; Lessac is lighter, for older computers.")
             }
             // A voice model, then one of its speakers.
             GridLayout {
@@ -312,8 +312,8 @@ Popup {
                     enabled: voice.status !== "downloading"
                     readonly property var chosen: voice.models[currentIndex] || ({ speakers: [] })
                     Component.onCompleted: currentIndex = Math.max(0, voice.models.findIndex(m => m.id === voice.currentModel))
-                    // A recording added (or XTTS's own speaker list) keeps the
-                    // model in view and picks the voice in use.
+                    // A change to the list keeps the model in view and picks
+                    // the voice in use.
                     Connections {
                         target: voice
                         function onModelsChanged() {
@@ -346,7 +346,7 @@ Popup {
                         const sp = modelPicker.chosen.speakers[index]
                         if (!sp)
                             return ""
-                        return modelPicker.chosen.id === "piper" ? sp.voice : modelPicker.chosen.id + "/" + sp.voice
+                        return modelPicker.chosen.id + "/" + sp.voice
                     }
                     function indexOfCurrent() {
                         for (let i = 0; i < modelPicker.chosen.speakers.length; ++i)
@@ -372,96 +372,11 @@ Popup {
                 opacity: 0.6
                 text: modelPicker.chosen.about || ""
             }
-            // Studio voices: a warning, and for XTTS its licence, before
-            // anything is installed.
-            Rectangle {
-                visible: modelPicker.chosen.studio === true && !voice.installed(modelPicker.chosen.id || "")
-                         && voice.status !== "downloading"
-                Layout.fillWidth: true
-                implicitHeight: studioColumn.implicitHeight + 24
-                radius: Math.min(8, theme.radius)
-                color: "#2a2318"
-                border.color: "#f5b347"
-                ColumnLayout {
-                    id: studioColumn
-                    anchors.fill: parent
-                    anchors.margins: 12
-                    spacing: 8
-                    Label {
-                        text: qsTr("Before installing a studio voice")
-                        font.weight: Font.DemiBold
-                        color: "#f5b347"
-                    }
-                    Label {
-                        Layout.fillWidth: true
-                        Layout.preferredWidth: 1
-                        wrapMode: Text.WordWrap
-                        font.pixelSize: 12
-                        text: qsTr("• It downloads about 6 GB (PyTorch and the model) into Shelf's own folder; nothing is installed for the rest of the computer, and Remove voices deletes it all.\n• It needs an NVIDIA graphics card with 6 GB of memory or more (an RTX 3060, 4070 or newer). Without one it is very slow.\n• While it speaks, it works the graphics card hard; it lets go a few minutes after a lesson.\n• Installing takes a while; you can keep reading meanwhile.")
-                    }
-                    Label {
-                        visible: !voice.hasNvidia
-                        Layout.fillWidth: true
-                        wrapMode: Text.WordWrap
-                        font.pixelSize: 12
-                        color: "#ff8a80"
-                        text: qsTr("Shelf can't find an NVIDIA graphics card's driver on this computer, so this voice would run on the processor, very slowly.")
-                    }
-                    CheckBox {
-                        id: understood
-                        text: qsTr("I understand")
-                        checked: false
-                    }
-                    CheckBox {
-                        id: licence
-                        visible: modelPicker.chosen.id === "xtts"
-                        checked: false
-                        text: qsTr("I agree to Coqui's licence (personal use)")
-                    }
-                    Label {
-                        visible: licence.visible
-                        text: "<a href=\"https://coqui.ai/cpml\">" + qsTr("Read the licence") + "</a>"
-                        textFormat: Text.RichText
-                        linkColor: theme.accent
-                        font.pixelSize: 12
-                        onLinkActivated: link => Qt.openUrlExternally(link)
-                    }
-                    AccentButton {
-                        text: qsTr("Install %1 (about 6 GB)").arg(modelPicker.chosen.label || "")
-                        enabled: understood.checked && (!licence.visible || licence.checked)
-                        onClicked: voice.installStudio(modelPicker.chosen.id)
-                    }
-                }
-            }
-            Label {
-                visible: voice.studioStep !== ""
-                Layout.fillWidth: true
-                wrapMode: Text.WordWrap
-                font.pixelSize: 12
-                opacity: 0.75
-                text: voice.studioStep
-            }
             RowLayout {
                 Layout.fillWidth: true
                 visible: voice.status !== "unsupported"
-                Button {
-                    visible: modelPicker.chosen.id === "chatterbox" && voice.installed("chatterbox") && voice.status !== "downloading"
-                    flat: true
-                    text: qsTr("Add a voice from a recording…")
-                    ToolTip.visible: hovered
-                    ToolTip.text: qsTr("10 to 30 seconds of one person speaking clearly. Use your own voice, or one you have permission to use.")
-                    onClicked: voice.addRecording()
-                }
-                Button {
-                    visible: modelPicker.chosen.id === "chatterbox" && (modelPicker.chosen.speakers[speakerPicker.currentIndex] || {}).recording === true
-                    flat: true
-                    text: qsTr("Remove this recording")
-                    onClicked: voice.removeRecording(speakerPicker.voiceId(speakerPicker.currentIndex))
-                }
                 AccentButton {
-                    visible: modelPicker.chosen.studio !== true && voice.status !== "downloading" && !voice.installed(modelPicker.chosen.id === "piper"
-                                                                                ? speakerPicker.voiceId(speakerPicker.currentIndex)
-                                                                                : modelPicker.chosen.id || "")
+                    visible: voice.status !== "downloading" && !voice.installed(modelPicker.chosen.id || "")
                     text: qsTr("Download %1 (%2 MB)").arg(modelPicker.chosen.label || "").arg(modelPicker.chosen.size || 0)
                     onClicked: voice.install(speakerPicker.voiceId(speakerPicker.currentIndex))
                 }

@@ -1,8 +1,6 @@
 #include "voice.h"
 
-#include "filepicker.h"
 #include "library.h"
-#include "studiovoice.h"
 
 #include <QCryptographicHash>
 #include <QDir>
@@ -26,31 +24,13 @@
 
 namespace {
 
-// --- Piper's own program, for the two voices of earlier versions ---------
-
-const char *piperRelease = "https://github.com/rhasspy/piper/releases/download/2023.11.14-2/";
-const char *piperVoiceBase = "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/";
-
-struct PiperVoice {
-    const char *id, *path, *modelSha, *configSha;
-};
-const PiperVoice piperVoices[] = {
-    {"en_US-lessac-medium", "lessac/medium/",
-     "5efe09e69902187827af646e1a6e9d269dee769f9877d17b16b1b46eeaaf019f",
-     "efe19c417bed055f2d69908248c6ba650fa135bc868b0e6abb3da181dab690a0"},
-    {"en_US-amy-medium", "amy/medium/",
-     "b3a6e47b57b8c7fbe6a0ce2518161a50f59a9cdd8a50835c02cb02bdd6206c18",
-     "95a23eb4d42909d38df73bb9ac7f45f597dbfcde2d1bf9526fdeaf5466977d77"},
-};
-bool isPiper(const QString &id) { return id.startsWith("en_US-"); }
-
 // --- sherpa-onnx and its voice models ------------------------------------
 
 const char *sherpaRelease = "https://github.com/k2-fsa/sherpa-onnx/releases/download/v2.0.3/";
 const char *modelRelease = "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/";
 
 // How a model is run: which family of flags it takes.
-enum class Kind { Kokoro, Kitten, Supertonic, Vits };
+enum class Kind { Kokoro, Vits };
 
 struct Model {
     const char *id;
@@ -66,18 +46,8 @@ const Model sherpaModels[] = {
      "72c347230107ef8a31098ec4d468a605244beef5f1ed00db97efa13518800653", 132353410, "model.int8.onnx"},
     {"kokoro-hd", Kind::Kokoro, "kokoro-multi-lang-v1_0",
      "60703707bc05ccd48d60e1eb723f38b07d6e474795a0b6a588d7220400e0f7a4", 349886476, "model.onnx"},
-    {"supertonic", Kind::Supertonic, "sherpa-onnx-supertonic-3-tts-int8-2026-05-11",
-     "82fa96f91c4ef8abaae3a14a3f4153facf88bed821d1f7331cec2700f432c427", 128774318, "vocoder.int8.onnx"},
-    {"kitten", Kind::Kitten, "kitten-mini-en-v0_8",
-     "518f9b130320f690d5b5476df77bde4215fca67773cda16710318e5081234b9d", 67547594, "model.onnx"},
-    {"libritts", Kind::Vits, "vits-piper-en_US-libritts_r-medium",
-     "10dc268f3e371696d721486123e2705a9fc1faa113491979fde4d88dba1f1b1c", 82038311, "en_US-libritts_r-medium.onnx"},
     {"lessac-hd", Kind::Vits, "vits-piper-en_US-lessac-high",
      "8619d204c7005866fe4f420181dfa79622af6a6222389f0b0818d2af31e0db0e", 115545841, "en_US-lessac-high.onnx"},
-    {"ryan-hd", Kind::Vits, "vits-piper-en_US-ryan-high",
-     "6a71edf4d308b9cb2eaeadc8d1f3c6bf96120ecb7fe52c29a2b6e139c59760ed", 115630708, "en_US-ryan-high.onnx"},
-    {"ljspeech-hd", Kind::Vits, "vits-piper-en_US-ljspeech-high",
-     "00c6408d2409050312193b0d40ae07fde28af7d3d45a56efcc55440db516b935", 115817679, "en_US-ljspeech-high.onnx"},
 };
 
 const Model *modelFor(const QString &voiceOrModel) {
@@ -123,13 +93,6 @@ const Speaker kokoroSpeakers[] = {
     {"bm_george", QT_TRANSLATE_NOOP("Voice", "George (British, man)")},
     {"bm_lewis", QT_TRANSLATE_NOOP("Voice", "Lewis (British, man)")},
 };
-const char *kittenSpeakers[] = {
-    QT_TRANSLATE_NOOP("Voice", "Man 1"), QT_TRANSLATE_NOOP("Voice", "Woman 1"),
-    QT_TRANSLATE_NOOP("Voice", "Man 2"), QT_TRANSLATE_NOOP("Voice", "Woman 2"),
-    QT_TRANSLATE_NOOP("Voice", "Man 3"), QT_TRANSLATE_NOOP("Voice", "Woman 3"),
-    QT_TRANSLATE_NOOP("Voice", "Man 4"), QT_TRANSLATE_NOOP("Voice", "Woman 4"),
-};
-
 QString platform() {
 #ifdef Q_OS_WIN
     return QSysInfo::currentCpuArchitecture() == "x86_64" ? "windows-x86_64" : QString();
@@ -166,42 +129,12 @@ Voice::Download sherpaProgram(const QString &platform) {
 
 } // namespace
 
-Voice::Voice(Library *library, const QString &directory, FilePicker *picker, QObject *parent)
+Voice::Voice(Library *library, const QString &directory, QObject *parent)
     : QObject(parent), m_library(library),
       m_directory(directory.isEmpty()
                       ? QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/shelf/voice"
                       : directory),
-      m_network(new QNetworkAccessManager(this)), m_picker(picker) {
-    m_studio = new StudioVoice(m_directory, this);
-    connect(m_studio, &StudioVoice::changed, this, &Voice::changed);
-    connect(m_studio, &StudioVoice::finished, this, [this](const QString &engine, const QString &error) {
-        if (!error.isEmpty()) {
-            setStatus(installed(m_voice) ? "ready" : "failed", error);
-            return;
-        }
-        emit modelsChanged();
-        m_voice = engine == "xtts" ? QStringLiteral("xtts/") + m_studio->xttsSpeakers().value(0) : QStringLiteral("chatterbox/default");
-        if (m_library)
-            m_library->setSetting("voiceId", m_voice);
-        setStatus("ready");
-    });
-    if (m_picker) {
-        m_picker->kind = "audio";
-        // A recording becomes one of Chatterbox's voices.
-        connect(m_picker, &FilePicker::picked, this, [this](const QStringList &paths) {
-            if (paths.isEmpty())
-                return;
-            const QString dir = m_directory + "/studio/voices";
-            QDir().mkpath(dir);
-            const QFileInfo source(paths.first());
-            const QString target = dir + "/" + source.fileName();
-            QFile::remove(target);
-            if (QFile::copy(source.absoluteFilePath(), target)) {
-                emit modelsChanged();
-                install("chatterbox/" + source.fileName());
-            }
-        });
-    }
+      m_network(new QNetworkAccessManager(this)) {
     m_voice = migrate(m_library ? m_library->setting("voiceId", "kokoro/3").toString() : QStringLiteral("kokoro/3"));
     if (platform().isEmpty())
         m_status = "unsupported";
@@ -224,24 +157,17 @@ QString Voice::migrate(const QString &voiceId) {
                 return QStringLiteral("kokoro/%1").arg(i);
         return QStringLiteral("kokoro/3");
     }
+    // Piper's medium voices became Lessac HD; the voices Shelf no longer
+    // offers (Supertonic, Kitten, LibriTTS, Ryan, Linda, the studio voices)
+    // fall back to Kokoro's default.
+    if (voiceId.startsWith("en_US-"))
+        return QStringLiteral("lessac-hd/0");
+    if (!modelFor(voiceId))
+        return QStringLiteral("kokoro/3");
     return voiceId;
 }
 
 QVariantList Voice::models() const {
-    const auto chatterboxVoices = [this]() {
-        QVariantList out{QVariantMap{{"voice", "default"}, {"label", tr("Default voice")}}};
-        const QDir dir(m_directory + "/studio/voices");
-        for (const QString &file : dir.entryList(QDir::Files, QDir::Name))
-            out << QVariantMap{{"voice", file}, {"label", tr("Like “%1”").arg(QFileInfo(file).completeBaseName())},
-                               {"recording", true}};
-        return out;
-    };
-    const auto xttsVoices = [this]() {
-        QVariantList out;
-        for (const QString &name : m_studio->xttsSpeakers())
-            out << QVariantMap{{"voice", name}, {"label", name}};
-        return out;
-    };
     const auto speakers = [](int count, const std::function<QString(int)> &label) {
         QVariantList out;
         for (int i = 0; i < count; ++i)
@@ -256,84 +182,16 @@ QVariantList Voice::models() const {
         QVariantMap{{"id", "kokoro-hd"}, {"label", tr("Kokoro HD")}, {"size", 380},
                     {"about", tr("The same 28 voices at full quality: the most natural, a little slower to make.")},
                     {"speakers", kokoro}},
-        QVariantMap{{"id", "supertonic"}, {"label", tr("Supertonic 3")}, {"size", 160},
-                    {"about", tr("Expressive and lively; 10 voices.")},
-                    {"speakers", speakers(10, [](int i) { return tr("Voice %1").arg(i + 1); })}},
-        QVariantMap{{"id", "kitten"}, {"label", tr("Kitten")}, {"size", 100},
-                    {"about", tr("Small and light; 8 voices.")},
-                    {"speakers", speakers(8, [](int i) { return tr(kittenSpeakers[i]); })}},
-        QVariantMap{{"id", "libritts"}, {"label", tr("LibriTTS: 904 readers")}, {"size", 110},
-                    {"about", tr("Hundreds of different readers, men and women; quick on any computer.")},
-                    {"speakers", speakers(904, [](int i) { return tr("Reader %1").arg(i + 1); })}},
-        QVariantMap{{"id", "lessac-hd"}, {"label", tr("Lessac HD")}, {"size", 145},
-                    {"about", tr("A clear, even reader (Piper, high quality).")},
+        QVariantMap{{"id", "lessac-hd"}, {"label", tr("Lessac (light)")}, {"size", 145},
+                    {"about", tr("A clear, even reader; lighter and quicker, for older computers.")},
                     {"speakers", speakers(1, [](int) { return tr("Lessac (US, woman)"); })}},
-        QVariantMap{{"id", "ryan-hd"}, {"label", tr("Ryan HD")}, {"size", 145},
-                    {"about", tr("A warm male reader (Piper, high quality).")},
-                    {"speakers", speakers(1, [](int) { return tr("Ryan (US, man)"); })}},
-        QVariantMap{{"id", "ljspeech-hd"}, {"label", tr("Linda HD")}, {"size", 145},
-                    {"about", tr("An audiobook reader (Piper, high quality).")},
-                    {"speakers", speakers(1, [](int) { return tr("Linda (US, woman)"); })}},
-        QVariantMap{{"id", "chatterbox"}, {"label", tr("Chatterbox (studio)")}, {"size", 6000}, {"studio", true},
-                    {"about", tr("Very close to a person, and can speak like a recording you give it. Runs on an NVIDIA graphics card.")},
-                    {"speakers", chatterboxVoices()}},
-        QVariantMap{{"id", "xtts"}, {"label", tr("XTTS-v2 (studio)")}, {"size", 6000}, {"studio", true},
-                    {"about", tr("58 natural studio voices. Runs on an NVIDIA graphics card. For personal, non-commercial use (Coqui Public Model Licence).")},
-                    {"speakers", xttsVoices()}},
-        QVariantMap{{"id", "piper"}, {"label", tr("Piper (lightest)")}, {"size", 90},
-                    {"about", tr("The voices of earlier versions; for older computers.")},
-                    {"speakers", QVariantList{QVariantMap{{"voice", "en_US-lessac-medium"}, {"label", tr("Lessac")}},
-                                              QVariantMap{{"voice", "en_US-amy-medium"}, {"label", tr("Amy")}}}}},
     };
 }
 
-QString Voice::currentModel() const { return isPiper(m_voice) ? QStringLiteral("piper") : m_voice.section('/', 0, 0); }
-double Voice::progress() const { return m_studio->busy() ? m_studio->progress() : m_progress; }
-QString Voice::studioStep() const { return m_studio->busy() ? m_studio->step() : QString(); }
-bool Voice::hasNvidia() const {
-#ifdef Q_OS_WIN
-    return !QStandardPaths::findExecutable("nvidia-smi").isEmpty()
-           || QFileInfo::exists("C:/Windows/System32/nvidia-smi.exe");
-#else
-    return !QStandardPaths::findExecutable("nvidia-smi").isEmpty();
-#endif
-}
-
-void Voice::installStudio(const QString &engine) {
-    if (!StudioVoice::isStudio(engine) || m_studio->busy())
-        return;
-    stop();
-    m_progress = -1;
-    setStatus("downloading");
-    m_studio->install(engine);
-}
-
-void Voice::addRecording() {
-    if (m_picker)
-        m_picker->pickBooks(tr("A recording of the voice (10 to 30 seconds of clear speech)"));
-}
-
-void Voice::removeRecording(const QString &voiceId) {
-    const QString file = voiceId.section('/', 1);
-    if (!voiceId.startsWith("chatterbox/") || file == "default" || file.contains(".."))
-        return;
-    QFile::remove(m_directory + "/studio/voices/" + file);
-    emit modelsChanged();
-    if (m_voice == voiceId)
-        install("chatterbox/default");
-}
-bool Voice::playbackPace() const { return !isPiper(m_voice); }
+QString Voice::currentModel() const { return m_voice.section('/', 0, 0); }
 
 QString Voice::speechDirectory() {
     return QStandardPaths::writableLocation(QStandardPaths::GenericCacheLocation) + "/shelf/speech";
-}
-
-QString Voice::piperExecutable() const {
-#ifdef Q_OS_WIN
-    return m_directory + "/piper/piper.exe";
-#else
-    return m_directory + "/piper/piper";
-#endif
 }
 
 // sherpa-onnx and its models live in voice/kokoro/ (the folder Shelf used
@@ -351,43 +209,16 @@ QString Voice::modelDirectory(const QString &model) const {
     return m ? m_directory + "/kokoro/" + m->folder : QString();
 }
 
-QString Voice::piperModelFile(const QString &voiceId) const { return m_directory + "/voices/" + voiceId + ".onnx"; }
-
 bool Voice::installed(const QString &voiceOrModel) const {
-    if (StudioVoice::isStudio(voiceOrModel.section('/', 0, 0)))
-        return m_studio->installed(voiceOrModel.section('/', 0, 0));
-    if (voiceOrModel == "piper")
-        return QFileInfo::exists(piperExecutable());
-    if (isPiper(voiceOrModel))
-        return QFileInfo::exists(piperExecutable()) && QFileInfo::exists(piperModelFile(voiceOrModel));
     const Model *m = modelFor(voiceOrModel);
     return m && QFileInfo::exists(sherpaExecutable()) && QFileInfo::exists(modelDirectory(m->id) + "/" + m->file);
 }
 
 QList<Voice::Download> Voice::downloadsFor(const QString &voiceId, const QString &platform) {
     QList<Download> out;
-    if (isPiper(voiceId)) {
-        if (platform == "linux-x86_64")
-            out << Download{QString(piperRelease) + "piper_linux_x86_64.tar.gz",
-                            "a50cb45f355b7af1f6d758c1b360717877ba0a398cc8cbe6d2a7a3a26e225992", "piper.tar.gz", 26460462};
-        else if (platform == "linux-aarch64")
-            out << Download{QString(piperRelease) + "piper_linux_aarch64.tar.gz",
-                            "fea0fd2d87c54dbc7078d0f878289f404bd4d6eea6e7444a77835d1537ab88eb", "piper.tar.gz", 26004717};
-        else if (platform == "windows-x86_64")
-            out << Download{QString(piperRelease) + "piper_windows_amd64.zip",
-                            "f3c58906402b24f3a96d92145f58acba6d86c9b5db896d207f78dc80811efcea", "piper.zip", 22477236};
-        else
-            return {};
-        for (const PiperVoice &v : piperVoices)
-            if (voiceId == QLatin1String(v.id)) {
-                const QString base = QString(piperVoiceBase) + v.path + v.id;
-                out << Download{base + ".onnx", v.modelSha, QStringLiteral("voices/%1.onnx").arg(v.id), 63201294}
-                    << Download{base + ".onnx.json", v.configSha, QStringLiteral("voices/%1.onnx.json").arg(v.id), 4885};
-                return out;
-            }
-        return {};
-    }
-    const Model *m = modelFor(migrate(voiceId));
+    // Only "kokoro-<name>" ids are carried over here, so an unknown voice
+    // is refused rather than quietly swapped for another.
+    const Model *m = modelFor(voiceId.startsWith("kokoro-") && !voiceId.contains('/') ? migrate(voiceId) : voiceId);
     const Download program = sherpaProgram(platform);
     if (!m || program.url.isEmpty())
         return {};
@@ -413,18 +244,6 @@ QStringList Voice::arguments(const QString &voiceId, const QString &text, const 
              << "--kokoro-lexicon=" + dir + (british ? "/lexicon-gb-en.txt" : "/lexicon-us-en.txt");
         break;
     }
-    case Kind::Kitten:
-        args << "--kitten-model=" + dir + "/" + m->file << "--kitten-voices=" + dir + "/voices.bin"
-             << "--kitten-tokens=" + dir + "/tokens.txt" << "--kitten-data-dir=" + dir + "/espeak-ng-data";
-        break;
-    case Kind::Supertonic:
-        args << "--supertonic-duration-predictor=" + dir + "/duration_predictor.int8.onnx"
-             << "--supertonic-text-encoder=" + dir + "/text_encoder.int8.onnx"
-             << "--supertonic-vector-estimator=" + dir + "/vector_estimator.int8.onnx"
-             << "--supertonic-vocoder=" + dir + "/vocoder.int8.onnx" << "--supertonic-tts-json=" + dir + "/tts.json"
-             << "--supertonic-unicode-indexer=" + dir + "/unicode_indexer.bin"
-             << "--supertonic-voice-style=" + dir + "/voice.bin" << "--lang=en";
-        break;
     case Kind::Vits:
         args << "--vits-model=" + dir + "/" + m->file << "--vits-tokens=" + dir + "/tokens.txt"
              << "--vits-data-dir=" + dir + "/espeak-ng-data";
@@ -446,18 +265,6 @@ void Voice::install(const QString &voiceIdIn) {
     const QString voiceId = migrate(voiceIdIn);
     if (m_status == "downloading" || m_status == "unsupported")
         return;
-    if (StudioVoice::isStudio(voiceId.section('/', 0, 0))) {
-        if (!installed(voiceId)) {
-            setStatus("failed", tr("Install this studio voice first."));
-            return;
-        }
-        stop();
-        m_voice = voiceId;
-        if (m_library)
-            m_library->setSetting("voiceId", voiceId);
-        setStatus("ready");
-        return;
-    }
     const QList<Download> all = downloadsFor(voiceId, platform());
     if (all.isEmpty()) {
         setStatus("failed", tr("Shelf doesn't know that voice."));
@@ -468,9 +275,7 @@ void Voice::install(const QString &voiceIdIn) {
     m_downloads.clear();
     for (const Download &d : all) {
         bool present = QFileInfo::exists(m_directory + "/" + d.file);
-        if (d.file.startsWith("piper."))
-            present = QFileInfo::exists(piperExecutable());
-        else if (d.file == "kokoro/program.tar.bz2")
+        if (d.file == "kokoro/program.tar.bz2")
             present = QFileInfo::exists(sherpaExecutable());
         else if (d.file.startsWith("kokoro/"))
             present = installed(voiceId);
@@ -486,7 +291,6 @@ void Voice::install(const QString &voiceIdIn) {
     for (const Download &d : m_downloads)
         m_totalBytes += d.size;
     m_progress = 0;
-    QDir().mkpath(m_directory + "/voices");
     QDir().mkpath(m_directory + "/kokoro");
     if (m_downloads.isEmpty()) {
         setStatus("ready");
@@ -589,7 +393,6 @@ void Voice::cancelInstall() {
 
 void Voice::remove() {
     stop();
-    m_studio->removeAll();
     if (m_status == "downloading")
         cancelInstall();
     QDir(m_directory).removeRecursively();
@@ -604,12 +407,10 @@ void Voice::say(const QString &key, int scene, int part, const QString &textIn, 
             emit spoken(key, scene, part, {});
         return;
     }
-    const double speed = m_library ? qBound(0.5, m_library->setting("lessonSpeed", 1).toDouble(), 2.0) : 1.0;
-    // Piper speaks at the lesson's pace; sherpa-onnx's speech is made at its
-    // own pace and played faster or slower by the lesson.
-    const QString pace = isPiper(m_voice) ? QString::number(1.0 / speed, 'f', 2) : QStringLiteral("1");
+    // Speech is made at the voice's own pace; the lesson plays it faster or
+    // slower. ("|1|" keeps the names speech made by earlier versions had.)
     QCryptographicHash hash(QCryptographicHash::Sha1);
-    hash.addData((m_voice + "|" + pace + "|" + text).toUtf8());
+    hash.addData((m_voice + "|1|" + text).toUtf8());
     const QString name = QString::fromLatin1(hash.result().toHex()) + ".wav";
     const QString file = speechDirectory() + "/" + name;
     if (QFileInfo::exists(file)) {
@@ -629,7 +430,7 @@ void Voice::say(const QString &key, int scene, int part, const QString &textIn, 
             j.part = part;
             return;
         }
-    if ((m_process || m_studioBusy) && m_running.file == file) {
+    if (m_process && m_running.file == file) {
         m_running.now = m_running.now || now;
         m_running.key = key;
         m_running.scene = scene;
@@ -646,41 +447,13 @@ void Voice::say(const QString &key, int scene, int part, const QString &textIn, 
 
 void Voice::stop() {
     m_queue.clear();
-    m_studio->stopSpeaking();
 }
 
 void Voice::runNext() {
-    if (m_process || m_studioBusy || m_queue.isEmpty())
+    if (m_process || m_queue.isEmpty())
         return;
     m_running = m_queue.takeFirst();
     QDir().mkpath(speechDirectory());
-    const QString engine = m_voice.section('/', 0, 0);
-    if (StudioVoice::isStudio(engine)) {
-        // Studio voices run in their helper, on the graphics card.
-        m_studioBusy = true;
-        const QString part = m_running.file + ".part.wav";
-        QString speaker = m_voice.section('/', 1);
-        if (engine == "chatterbox" && speaker != "default")
-            speaker = m_directory + "/studio/voices/" + speaker;
-        m_studio->speak(engine, speaker, m_running.text, part, [this, part](const QString &error) {
-            const Job job = m_running;
-            m_studioBusy = false;
-            const bool made = error.isEmpty() && QFileInfo(part).size() > 44;
-            if (made) {
-                QFile::remove(job.file);
-                QFile::rename(part, job.file);
-            } else {
-                QFile::remove(part);
-                if (!error.isEmpty() && error != tr("Stopped."))
-                    qWarning("voice: %s", qPrintable(error.left(400)));
-            }
-            if (job.now)
-                emit spoken(job.key, job.scene, job.part,
-                            made ? "shelf://app/voice/" + QFileInfo(job.file).fileName() : QString());
-            runNext();
-        });
-        return;
-    }
     m_process = new QProcess(this);
 #if defined(Q_OS_UNIX)
     m_process->setChildProcessModifier([] { (void)::nice(19); });
@@ -689,14 +462,12 @@ void Voice::runNext() {
         args->flags |= IDLE_PRIORITY_CLASS | CREATE_NO_WINDOW;
     });
 #endif
-    const bool piper = isPiper(m_voice);
-    const QString program = piper ? piperExecutable() : sherpaExecutable();
+    const QString program = sherpaExecutable();
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
-    env.insert("OMP_NUM_THREADS", piper ? "1" : "2");
+    env.insert("OMP_NUM_THREADS", "2");
 #ifdef Q_OS_LINUX
     // sherpa-onnx's libraries sit in lib/ beside bin/.
-    if (!piper)
-        env.insert("LD_LIBRARY_PATH", QFileInfo(program).absolutePath() + "/../lib");
+    env.insert("LD_LIBRARY_PATH", QFileInfo(program).absolutePath() + "/../lib");
 #endif
     m_process->setProcessEnvironment(env);
     m_process->setWorkingDirectory(QFileInfo(program).absolutePath());
@@ -720,13 +491,6 @@ void Voice::runNext() {
                         made ? "shelf://app/voice/" + QFileInfo(job.file).fileName() : QString());
         runNext();
     });
-    if (piper) {
-        const double speed = m_library ? qBound(0.5, m_library->setting("lessonSpeed", 1).toDouble(), 2.0) : 1.0;
-        m_process->start(program, {"--model", piperModelFile(m_voice), "--output_file", part, "--length_scale",
-                                   QString::number(1.0 / speed, 'f', 2), "--quiet"});
-        m_process->write(m_running.text.toUtf8() + "\n");
-    } else {
-        m_process->start(program, arguments(m_voice, m_running.text, part));
-    }
+    m_process->start(program, arguments(m_voice, m_running.text, part));
     m_process->closeWriteChannel();
 }

@@ -129,19 +129,11 @@ An organized library and reader for EPUB and PDF books, built for Omarchy.
   voices, download it once, and press *Try* to hear it. All run on this
   computer through sherpa-onnx, checked against SHA-256 checksums built into
   Shelf: Kokoro and Kokoro HD (28 English voices each; HD sounds the most
-  like a person), Supertonic 3 (10), Kitten (8), LibriTTS (904 different
-  readers), and Piper's high-quality Lessac, Ryan and Linda; the lighter
-  Piper voices of earlier versions remain for older computers. Each scene is
+  like a person) and Piper's Lessac, lighter and quicker for older
+  computers. Earlier voices that were dropped switch to Kokoro. Each scene is
   spoken as one recording, so it flows, with captions and drawing following
   along, and a volume slider. Speech is made a scene ahead at idle priority
   and kept. *Play a sample lesson* shows what lessons are like without the AI.
-- **Studio voices** (optional, NVIDIA graphics card): Chatterbox, which can
-  also speak like a short recording you give it, and XTTS-v2 with 58 studio
-  voices (personal, non-commercial use under Coqui's licence). After a
-  warning, Shelf sets up a private Python with PyTorch inside its own folder
-  using uv (about 6 GB each; nothing is installed for the rest of the
-  computer, and *Remove voices* deletes it all). A helper keeps the model on
-  the graphics card while lessons play and lets go after a few quiet minutes.
 - **Boards**: lessons are written by hand as they're explained, on a
   whiteboard, a chalkboard or a notebook page (or plainly, *Clean*): words
   appear stroke by stroke with the marker following, diagrams are drawn by
@@ -283,8 +275,7 @@ chat model works. Set `SHELF_OLLAMA_URL` to use Ollama on another address.
 - Concepts found for the knowledge graph: `~/.local/share/shelf/concepts.json`.
 - Workspaces, with their copies of the slides: `~/.local/share/shelf/workspaces/`.
 - Lessons: `~/.cache/shelf/lessons/`; their speech: `~/.cache/shelf/speech/`.
-- The voices: `~/.local/share/shelf/voice/` (studio voices, with their
-  Python and models, in `voice/studio/`).
+- The voices: `~/.local/share/shelf/voice/`.
 - Flashcards: `~/.local/share/shelf/cards.json`.
 - Downloaded updates: `~/.cache/shelf/updates/`.
 - Covers: `~/.cache/shelf/covers/`, safe to delete; they come back when a book
@@ -302,7 +293,5 @@ MIT. See `LICENSE`, including the credits for foliate-js and Omacut.
 KaTeX, Mermaid and marked (all MIT) are in `src/web/vendor/` with their
 licences, and the Caveat handwriting font (SIL Open Font Licence) is in
 `src/web/vendor/caveat/`. The voices are downloaded when asked for, not
-shipped: sherpa-onnx (Apache 2.0), Kokoro (Apache 2.0), Kitten (Apache 2.0),
-Supertonic 3 (OpenRAIL-M), Piper and its voices (MIT), uv (MIT/Apache 2.0),
-Chatterbox (MIT), and Coqui TTS (MPL 2.0) with XTTS-v2 (Coqui Public Model
-Licence, non-commercial).
+shipped: sherpa-onnx (Apache 2.0), Kokoro (Apache 2.0) and Piper's Lessac
+voice (MIT).

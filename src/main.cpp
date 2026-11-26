@@ -88,9 +88,9 @@ int main(int argc, char *argv[]) {
 
     Theme theme;
 #ifdef Q_OS_WIN
-    WindowsFilePicker picker, slidePicker, audioPicker;
+    WindowsFilePicker picker, slidePicker;
 #else
-    PortalFilePicker picker, slidePicker, audioPicker;
+    PortalFilePicker picker, slidePicker;
 #endif
     Library library({}, {}, &picker);
     Annotations annotations;
@@ -114,7 +114,7 @@ int main(int argc, char *argv[]) {
     Updater updater(&library);
     Workspaces workspaces(&library, &slidePicker);
     Explainer explainer(&ollama);
-    Voice voice(&library, {}, &audioPicker);
+    Voice voice(&library);
     QObject::connect(&app, &QGuiApplication::aboutToQuit, &library, &Library::flush);
 
     SchemeHandler scheme(&library);

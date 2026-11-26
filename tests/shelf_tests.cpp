@@ -19,7 +19,6 @@
 #include "annotations.h"
 #include "cards.h"
 #include "voice.h"
-#include "studiovoice.h"
 #include "explainer.h"
 #include "slides.h"
 #include "workspaces.h"
@@ -1184,44 +1183,39 @@ private slots:
         QCOMPARE(graph.pending({QVariantMap{{"id", "aa11"}}}), 1);
     }
 
-    // The voice: each computer gets its own Piper build plus the voice, all
-    // with checksums; without a voice, a sentence comes back with no sound
-    // at once, so the lesson goes on at reading pace.
+    // The voice: sherpa-onnx for the computer plus the voice model, all with
+    // checksums; without a voice, a sentence comes back with no sound at
+    // once, so the lesson goes on at reading pace.
     void voiceDownloadsAreChecked() {
         for (const QString platform : {"linux-x86_64", "linux-aarch64", "windows-x86_64"}) {
-            const QList<Voice::Download> all = Voice::downloadsFor("en_US-lessac-medium", platform);
-            QCOMPARE(all.size(), 3);
+            const QList<Voice::Download> all = Voice::downloadsFor("kokoro-af_heart", platform);
+            QCOMPARE(all.size(), 2);
+            QCOMPARE(all[1].file, QString("kokoro/kokoro.tar.bz2"));
             for (const Voice::Download &d : all) {
                 QVERIFY(d.url.startsWith("https://"));
                 QCOMPARE(d.sha256.size(), 64);
             }
         }
-        QVERIFY(Voice::downloadsFor("en_US-lessac-medium", "windows-x86_64")[0].file.endsWith(".zip"));
-        // Kokoro: sherpa-onnx for the computer, and the voices, all checked.
-        for (const QString platform : {"linux-x86_64", "linux-aarch64", "windows-x86_64"}) {
-            const QList<Voice::Download> all = Voice::downloadsFor("kokoro-af_heart", platform);
-            QCOMPARE(all.size(), 2);
-            QCOMPARE(all[1].file, QString("kokoro/kokoro.tar.bz2"));
-            for (const Voice::Download &d : all)
-                QCOMPARE(d.sha256.size(), 64);
-        }
         QVERIFY(Voice::downloadsFor("nobody/1", "linux-x86_64").isEmpty());
-        for (const QString model : {"kokoro-hd", "supertonic", "kitten", "libritts", "lessac-hd", "ryan-hd", "ljspeech-hd"})
+        QVERIFY(Voice::downloadsFor("supertonic/0", "linux-x86_64").isEmpty());
+        for (const QString model : {"kokoro", "kokoro-hd", "lessac-hd"})
             QCOMPARE(Voice::downloadsFor(model + "/0", "windows-x86_64").size(), 2);
-        // Voice ids from the first Kokoro version carry over.
+        QCOMPARE(Voice::downloadsFor("kokoro/0", "macos").size(), 0);
+        // Voice ids from earlier versions carry over; removed voices fall back.
         QCOMPARE(Voice::migrate("kokoro-bf_emma"), QString("kokoro/21"));
-        QCOMPARE(Voice::migrate("en_US-amy-medium"), QString("en_US-amy-medium"));
+        QCOMPARE(Voice::migrate("en_US-amy-medium"), QString("lessac-hd/0"));
+        QCOMPARE(Voice::migrate("xtts/Ana Florence"), QString("kokoro/3"));
+        QCOMPARE(Voice::migrate("libritts/900"), QString("kokoro/3"));
+        QCOMPARE(Voice::migrate("kokoro-hd/5"), QString("kokoro-hd/5"));
         // Each kind of model gets its own flags, and the speaker.
         Voice flags(nullptr, QTemporaryDir().path());
-        const QStringList kitten = flags.arguments("kitten/1", "Hello.", "/tmp/x.wav");
-        QVERIFY(kitten.join(' ').contains("--kitten-model="));
-        QVERIFY(kitten.contains("--sid=1"));
-        QCOMPARE(kitten.last(), QString("Hello."));
-        QVERIFY(flags.arguments("supertonic/4", "Hi.", "o.wav").contains("--lang=en"));
+        const QStringList kokoro = flags.arguments("kokoro/1", "Hello.", "/tmp/x.wav");
+        QVERIFY(kokoro.join(' ').contains("--kokoro-model="));
+        QVERIFY(kokoro.contains("--sid=1"));
+        QCOMPARE(kokoro.last(), QString("Hello."));
         QVERIFY(flags.arguments("kokoro-hd/21", "Hi.", "o.wav").join(' ').contains("lexicon-gb-en.txt"));
-        QVERIFY(flags.arguments("libritts/900", "Hi.", "o.wav").contains("--sid=900"));
-        QVERIFY(Voice::downloadsFor("nobody", "linux-x86_64").isEmpty());
-        QVERIFY(Voice::downloadsFor("en_US-amy-medium", "macos").isEmpty());
+        QVERIFY(flags.arguments("lessac-hd/0", "Hi.", "o.wav").join(' ').contains("--vits-model="));
+        QCOMPARE(flags.models().size(), 3);
         QTemporaryDir dir;
         Voice voice(nullptr, dir.path());
         QVERIFY(!voice.ready());
@@ -1231,25 +1225,6 @@ private slots:
         QCOMPARE(spoken[0][3].toString(), QString());
         voice.say("lesson", 1, 3, "Ahead of time.", false);   // nothing waits for it
         QCOMPARE(spoken.size(), 1);
-    }
-
-    // Studio voices are only offered, never assumed: nothing is installed
-    // until asked, and speaking without one says so at once.
-    void studioVoicesNeedInstalling() {
-        QTemporaryDir dir;
-        StudioVoice studio(dir.path());
-        QVERIFY(!studio.installed("chatterbox"));
-        QVERIFY(!studio.installed("xtts"));
-        QVERIFY(StudioVoice::isStudio("xtts"));
-        QVERIFY(!StudioVoice::isStudio("kokoro"));
-        QCOMPARE(studio.xttsSpeakers().size(), 58);
-        const QByteArray helper = StudioVoice::helperScript();
-        QVERIFY(helper.contains("ChatterboxTTS") && helper.contains("xtts_v2"));
-        QString error;
-        studio.speak("xtts", "Ana Florence", "Hello.", dir.filePath("x.wav"), [&](const QString &e) { error = e; });
-        QVERIFY(!error.isEmpty());
-        Voice voice(nullptr, dir.path());
-        QVERIFY(!voice.installed("chatterbox/default"));
     }
 
     // Lessons: good scenes are kept, a formula that can't be typeset or a

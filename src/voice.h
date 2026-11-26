@@ -5,17 +5,14 @@
 #include <QVariant>
 #include <functional>
 
-class FilePicker;
 class Library;
 class QNetworkAccessManager;
 class QProcess;
-class StudioVoice;
 
 // The voices that read lessons aloud, all run on this computer by
 // sherpa-onnx's command-line tool: Kokoro and Kokoro HD (closest to a
-// person), Supertonic, Kitten, and Piper's best English voices, including
-// LibriTTS with 904 speakers. (Piper's own program still runs the two Piper
-// voices from earlier versions.) Shelf downloads a voice model only when
+// person) and Piper's Lessac voice (light, for older computers). Shelf
+// downloads a voice model only when
 // asked, checks every file against a SHA-256 checksum written into Shelf,
 // and keeps it in Shelf's data folder; every speaker of a model comes with it.
 //
@@ -32,41 +29,25 @@ class Voice : public QObject {
     Q_PROPERTY(QString error READ error NOTIFY changed)
     // [{id, label, about, size (MB), speakers: [{voice, label}]}]
     Q_PROPERTY(QVariantList models READ models NOTIFY modelsChanged)
-    // The voice in use, "<model>/<speaker>" (or a Piper voice's name), and
-    // its model.
+    // The voice in use, "<model>/<speaker>", and its model.
     Q_PROPERTY(QString current READ current NOTIFY changed)
     Q_PROPERTY(QString currentModel READ currentModel NOTIFY changed)
-    // Whether the lesson should play the speech faster or slower itself
-    // (sherpa-onnx's tool has no pace setting; Piper's does).
-    Q_PROPERTY(bool playbackPace READ playbackPace NOTIFY changed)
-    // Installing a studio voice (Chatterbox, XTTS): what it's doing.
-    Q_PROPERTY(QString studioStep READ studioStep NOTIFY changed)
-    // Whether an NVIDIA graphics card's tools are on this computer, for the
-    // studio voices' warning.
-    Q_PROPERTY(bool hasNvidia READ hasNvidia CONSTANT)
+    // The lesson plays the speech faster or slower itself (sherpa-onnx's
+    // tool has no pace setting).
+    Q_PROPERTY(bool playbackPace READ playbackPace CONSTANT)
 
 public:
-    explicit Voice(Library *library, const QString &directory = {}, FilePicker *picker = nullptr,
-                   QObject *parent = nullptr);
+    explicit Voice(Library *library, const QString &directory = {}, QObject *parent = nullptr);
     ~Voice() override;
 
     QString status() const { return m_status; }
     bool ready() const { return m_status == "ready"; }
-    double progress() const;
+    double progress() const { return m_progress; }
     QString error() const { return m_error; }
     QVariantList models() const;
     QString current() const { return m_voice; }
     QString currentModel() const;
-    bool playbackPace() const;
-    QString studioStep() const;
-    bool hasNvidia() const;
-
-    // Installs a studio voice ("chatterbox", "xtts") after the user has
-    // read the warning (and, for XTTS, agreed to Coqui's licence).
-    Q_INVOKABLE void installStudio(const QString &engine);
-    // Asks for a recording of a voice for Chatterbox to speak like.
-    Q_INVOKABLE void addRecording();
-    Q_INVOKABLE void removeRecording(const QString &voiceId);
+    bool playbackPace() const { return true; }
 
     // Whether a voice's (or a model's) files are downloaded.
     Q_INVOKABLE bool installed(const QString &voiceOrModel) const;
@@ -85,7 +66,8 @@ public:
 
     // Where made speech is kept; the scheme handler serves it from there.
     static QString speechDirectory();
-    // Voice ids from earlier versions ("kokoro-af_heart") in today's form.
+    // Voice ids from earlier versions ("kokoro-af_heart", Piper and removed
+    // models) in today's form.
     static QString migrate(const QString &voiceId);
 
     struct Download {
@@ -99,15 +81,12 @@ public:
 
 signals:
     void changed();
-    // Chatterbox recordings or XTTS's speakers changed.
     void modelsChanged();
     void spoken(const QString &key, int scene, int part, const QString &url);
 
 private:
-    QString piperExecutable() const;
     QString sherpaExecutable() const;
     QString modelDirectory(const QString &model) const;
-    QString piperModelFile(const QString &voiceId) const;
     void setStatus(const QString &status, const QString &error = {});
     void downloadNext();
     void unpack();
@@ -131,8 +110,5 @@ private:
     QObject *m_reply = nullptr;
     QList<Job> m_queue;
     QProcess *m_process = nullptr;
-    bool m_studioBusy = false;
     Job m_running;
-    StudioVoice *m_studio = nullptr;
-    FilePicker *m_picker = nullptr;
 };

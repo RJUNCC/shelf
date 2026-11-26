@@ -32,13 +32,10 @@ void WindowsFilePicker::pickBooks(const QString &title) {
                                                {L"EPUB", L"*.epub"}, {L"PDF", L"*.pdf"}};
             const COMDLG_FILTERSPEC decks[] = {{L"Slides (*.pdf, *.pptx)", L"*.pdf;*.pptx"},
                                                {L"PDF", L"*.pdf"}, {L"PowerPoint", L"*.pptx"}};
-            const COMDLG_FILTERSPEC audio[] = {{L"Recordings (*.wav, *.mp3, *.flac)", L"*.wav;*.mp3;*.flac"}};
             const COMDLG_FILTERSPEC documents[] = {
                 {L"Documents (*.pdf, *.docx, *.odt, *.html, *.txt, *.md)", L"*.pdf;*.docx;*.odt;*.html;*.htm;*.txt;*.md"}};
             if (kind == "documents")
                 dialog->SetFileTypes(1, documents);
-            else if (kind == "audio")
-                dialog->SetFileTypes(1, audio);
             else
                 dialog->SetFileTypes(3, kind == "slides" ? decks : books);
             DWORD options = 0;

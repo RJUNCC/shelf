@@ -13,9 +13,8 @@ public:
     virtual void pickBooks(const QString &title) = 0;
 
     // What this picker asks for: "books" (EPUB, PDF), "slides" (PDF,
-    // PowerPoint), "documents" (a study review) or "audio" (a recording for
-    // a voice). Workspaces and
-    // voices have pickers of their own.
+    // PowerPoint) or "documents" (a study review). Workspaces have a picker
+    // of their own.
     QString kind = "books";
 
 signals:

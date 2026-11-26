@@ -85,11 +85,6 @@ void PortalFilePicker::pickBooks(const QString &title) {
                                  {1, "text/markdown"}, {0, "*.pdf"}, {0, "*.docx"}, {0, "*.odt"}, {0, "*.html"},
                                  {0, "*.htm"}, {0, "*.txt"}, {0, "*.md"}}},
           }
-        : kind == "audio"
-        ? QList<Filter>{
-              {tr("Recordings"), {{1, "audio/wav"}, {1, "audio/x-wav"}, {1, "audio/mpeg"}, {1, "audio/flac"},
-                                  {0, "*.wav"}, {0, "*.mp3"}, {0, "*.flac"}}},
-          }
         : kind == "slides"
         ? QList<Filter>{
               {tr("Slides"), {{1, "application/pdf"}, {1, pptx}, {0, "*.pdf"}, {0, "*.pptx"}}},
