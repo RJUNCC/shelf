@@ -1,5 +1,9 @@
 #include "ollama.h"
 
+#include <QTimer>
+
+#include <QProcess>
+
 #include <algorithm>
 #include <QThread>
 
@@ -54,6 +58,26 @@ bool Ollama::installed() const {
 #else
     return false;
 #endif
+}
+
+void Ollama::start() {
+#ifdef Q_OS_WIN
+    const QString app = QDir::fromNativeSeparators(qEnvironmentVariable("LOCALAPPDATA")) + "/Programs/Ollama/ollama app.exe";
+    if (QFileInfo::exists(app))
+        QProcess::startDetached(app, {});
+    else
+#endif
+    {
+        QString program = QStandardPaths::findExecutable("ollama");
+#ifdef Q_OS_WIN
+        if (program.isEmpty())
+            program = QDir::fromNativeSeparators(qEnvironmentVariable("LOCALAPPDATA")) + "/Programs/Ollama/ollama.exe";
+#endif
+        if (!QFileInfo::exists(program))
+            return;
+        QProcess::startDetached(program, {"serve"});
+    }
+    QTimer::singleShot(2500, this, &Ollama::refresh);
 }
 
 QJsonObject Ollama::options(const QJsonObject &extra) const {

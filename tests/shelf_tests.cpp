@@ -19,6 +19,7 @@
 #include "annotations.h"
 #include "cards.h"
 #include "voice.h"
+#include "backup.h"
 #include "explainer.h"
 #include "slides.h"
 #include "workspaces.h"
@@ -126,6 +127,86 @@ private slots:
         const QString epub = writeEpub(dir.filePath("Untitled Thing.epub"), "", "");
         Library library(dir.filePath("data"), dir.filePath("cache"));
         QCOMPARE(library.book(library.addFile(epub))["title"].toString(), QString("Untitled Thing"));
+    }
+
+    // Flashcards for Anki (HTML, MathJax delimiters, a deck per book) and
+    // Quizlet (one plain line per card).
+    void cardsExport() {
+        const QVariantList list{
+            QVariantMap{{"bookId", "b1"}, {"front", "What is $E$?"}, {"back", "Energy:\n$$E = mc^2$$ & <more>"}},
+            QVariantMap{{"bookId", "zz"}, {"front", "Costs $5 and $10"}, {"back", "a\tb"}}};
+        const QString anki = Cards::exportText(list, "anki", {{"b1", "Physics::Intro"}});
+        const QStringList lines = anki.split('\n', Qt::SkipEmptyParts);
+        QVERIFY(lines[0] == "#separator:tab" && lines.contains("#html:true") && lines.contains("#deck column:3"));
+        QCOMPARE(lines[4], QString("What is \\(E\\)?\tEnergy:<br>\\[E = mc^2\\] &amp; &lt;more&gt;\tShelf::Physics:Intro"));
+        QCOMPARE(lines[5], QString("Costs $5 and $10\ta b\tShelf"));
+        const QString quizlet = Cards::exportText(list, "quizlet", {});
+        QCOMPARE(quizlet.split('\n', Qt::SkipEmptyParts).first(), QString("What is $E$?\tEnergy: / $$E = mc^2$$ & <more>"));
+    }
+
+    // A backup with books, restored on a "new computer" where the book's
+    // old place doesn't exist: the data comes back, the book points at its
+    // restored copy, and what was there before is kept aside.
+    void backupAndRestore() {
+        QTemporaryDir dir;
+        QDir().mkpath(dir.filePath("away"));
+        const QString epub = writeEpub(dir.filePath("away/b.epub"), "Book", "Author");
+        QString id;
+        {
+            Library library(dir.filePath("one/shelf"), dir.filePath("cache"));
+            library.setSetting("backupFolder", dir.filePath("backups"));
+            id = library.addFile(epub);
+            library.saveProgress(id, "epubcfi(/6/4!/4/2)", 0.42);
+            library.createCollection("Bio");
+            library.setInCollection(id, "Bio", true);
+            QCOMPARE(library.collectionMembers("Bio"), QStringList{id});
+            QDir().mkpath(dir.filePath("one/shelf/voice"));
+            QFile big(dir.filePath("one/shelf/voice/model.onnx"));
+            QVERIFY(big.open(QIODevice::WriteOnly));
+            big.write("not backed up");
+            big.close();
+            Backup backup(&library, nullptr, nullptr, dir.filePath("one/shelf"));
+            QSignalSpy changed(&backup, &Backup::changed);
+            backup.create(true);
+            QTRY_VERIFY_WITH_TIMEOUT(backup.state() != "working", 20000);
+            QCOMPARE(backup.state(), QString("done"));
+            QVERIFY(!backup.lastBackup().isEmpty());
+        }
+        const QStringList made = QDir(dir.filePath("backups")).entryList({"*.shelfbackup"});
+        QCOMPARE(made.size(), 1);
+        QFile::remove(epub);   // the new computer doesn't have it
+
+        // The new computer, with a library of its own.
+        {
+            Library other(dir.filePath("two/shelf"), dir.filePath("cache2"));
+            other.setSetting("mine", true);
+            Backup backup(&other, nullptr, nullptr, dir.filePath("two/shelf"));
+            backup.restore(dir.filePath("backups/" + made.first()));
+            QTRY_VERIFY_WITH_TIMEOUT(backup.state() != "working", 20000);
+            QCOMPARE(backup.state(), QString("restart"));
+            // Not a backup at all.
+            QFile junk(dir.filePath("junk.shelfbackup"));
+            QVERIFY(junk.open(QIODevice::WriteOnly));
+            junk.write("nope");
+            junk.close();
+        }
+        const QString message = Backup::applyPending(dir.filePath("two/shelf"));
+        QVERIFY(message.contains("restored"));
+        QVERIFY(Backup::applyPending(dir.filePath("two/shelf")).isEmpty());   // only once
+        Library restored(dir.filePath("two/shelf"), dir.filePath("cache2"));
+        const QVariantMap book = restored.book(id);
+        QCOMPARE(book["progress"].toDouble(), 0.42);
+        QCOMPARE(book["collections"].toStringList(), QStringList{"Bio"});
+        QVERIFY(book["path"].toString().startsWith(dir.filePath("two/shelf/books/")));
+        QVERIFY(QFileInfo::exists(book["path"].toString()));
+        QVERIFY(!restored.setting("mine", false).toBool());
+        QVERIFY(!QFileInfo::exists(dir.filePath("two/shelf/voice/model.onnx")));
+        QCOMPARE(QDir(dir.filePath("two")).entryList({"shelf-before-restore-*"}, QDir::Dirs).size(), 1);
+
+        Backup junk(&restored, nullptr, nullptr, dir.filePath("two/shelf"));
+        junk.restore(dir.filePath("junk.shelfbackup"));
+        QTRY_VERIFY_WITH_TIMEOUT(junk.state() != "working", 20000);
+        QCOMPARE(junk.state(), QString("failed"));
     }
 
     void progressAndCollectionsPersist() {

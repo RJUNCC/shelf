@@ -20,6 +20,8 @@ Rectangle {
             ["Delete", qsTr("Remove from library")],
             ["Ctrl+A", qsTr("Select all books (then add them to a collection)")],
             [qsTr("Ctrl / Shift click"), qsTr("Pick several books")],
+            ["Ctrl+B", qsTr("Show or hide the library panel")],
+            ["Ctrl+,", qsTr("Settings")],
             ["Q", qsTr("Quit")]
         ] },
         { title: qsTr("Reading"), rows: [

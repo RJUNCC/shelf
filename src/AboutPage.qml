@@ -3,25 +3,15 @@ import QtQuick.Controls
 import QtQuick.Controls.Material
 import QtQuick.Layouts
 
-// About Shelf, and updates: whether Shelf may check GitHub for a new
+// Settings › About and updates: whether Shelf may check GitHub for a new
 // version once a day, checking by hand, the release notes, and updating.
-Popup {
+Item {
     id: about
-    anchors.centerIn: Overlay.overlay
-    width: Math.min(620, (parent ? parent.width : 660) - 40)
-    height: Math.min(560, (parent ? parent.height : 600) - 40)
-    modal: true
-    focus: true
-    padding: 0
-    closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-    Material.roundedScale: theme.radius
-    background: Rectangle { color: "#18181d"; radius: theme.radius; border.color: "#2c2c33" }
 
     readonly property string state: updater.state
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 22
         spacing: 12
 
         RowLayout {
@@ -34,12 +24,6 @@ Popup {
                 spacing: 0
                 Label { text: "Shelf"; font.pixelSize: 22; font.weight: Font.DemiBold }
                 Label { text: qsTr("Version %1").arg(updater.version); opacity: 0.6 }
-            }
-            Item { Layout.fillWidth: true }
-            ToolbarButton {
-                iconName: "close"
-                tip: qsTr("Close (Esc)")
-                onClicked: about.close()
             }
         }
         Label {

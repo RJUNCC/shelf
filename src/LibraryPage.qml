@@ -173,15 +173,8 @@ FocusScope {
 
                 // Which shelf or collection, so the tab works with the
                 // sidebar hidden too (both share library.shelf).
-                ComboBox {
-                    id: shelfBox
-                    readonly property var filters: page.shelves.map(f => ({ key: f.key, label: f.icon + "  " + f.label }))
-                        .concat(library.collections.map(c => ({ key: "collection:" + c, label: "◆  " + c })))
-                    Layout.preferredWidth: 190
-                    textRole: "label"
-                    model: filters
-                    currentIndex: Math.max(0, filters.findIndex(f => f.key === library.shelf))
-                    onActivated: library.shelf = filters[currentIndex].key
+                ShelfPicker {
+                    Layout.preferredWidth: 200
                 }
 
                 ComboBox {
@@ -504,5 +497,21 @@ FocusScope {
                   : qsTr("It leaves your library and its reading position is forgotten. The file itself stays where it is.")
             opacity: 0.75
         }
+    }
+
+    // What can be done here, the first time.
+    TipCard {
+        key: "library"
+        title: qsTr("Your library")
+        z: 50
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.margins: 18
+        lines: [
+            qsTr("Add books with <b>Add books</b>, or drop files and folders on the window."),
+            qsTr("The panel on the left (Ctrl+B) keeps your books, workspaces and study tools beside every tab."),
+            qsTr("Right-click a book to put it in a collection; choose a collection from the list at the top."),
+            qsTr("<b>⚙ Settings</b> sets up the local AI and voices, and backs up your notes.")
+        ]
     }
 }

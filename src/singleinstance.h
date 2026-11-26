@@ -14,6 +14,8 @@ public:
 
     // True when another instance took the files; the caller should exit.
     bool forwardToRunning(const QStringList &paths);
+    // Whether another instance is answering.
+    bool isRunning();
     // Starts listening for later launches.
     bool listen();
 

@@ -410,6 +410,14 @@ bool Library::createCollection(const QString &name) {
     return true;
 }
 
+QStringList Library::collectionMembers(const QString &name) const {
+    QStringList ids;
+    for (const auto &book : m_books)
+        if (book.value("collections").toVariant().toStringList().contains(name))
+            ids << book.value("id").toString();
+    return ids;
+}
+
 void Library::deleteCollection(const QString &name) {
     if (!m_collections.removeOne(name))
         return;
@@ -493,6 +501,16 @@ void Library::removeMany(const QStringList &ids) {
 
 QVariant Library::setting(const QString &key, const QVariant &fallback) const {
     return m_settings.contains(key) ? m_settings.value(key).toVariant() : fallback;
+}
+
+void Library::resetSettings(const QString &prefix) {
+    if (prefix.isEmpty())
+        return;
+    for (const QString &key : m_settings.keys())
+        if (key.startsWith(prefix))
+            m_settings.remove(key);
+    changed(false);
+    emit settingsReset();
 }
 
 void Library::setSetting(const QString &key, const QVariant &value) {

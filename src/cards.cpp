@@ -250,3 +250,51 @@ void Cards::save() {
     ++m_revision;
     emit changed();
 }
+
+namespace {
+
+// LaTeX as Anki's MathJax wants it: $$…$$ → \[…\], $…$ → \(…\).
+QString ankiMath(QString text) {
+    static const QRegularExpression display(QStringLiteral(R"(\$\$(.+?)\$\$)"),
+                                            QRegularExpression::DotMatchesEverythingOption);
+    static const QRegularExpression inlineMath(QStringLiteral(R"((?<![\\$])\$(?!\s)([^$\n]+?)(?<!\s)\$)"));
+    text.replace(display, QStringLiteral(R"(\[\1\])"));
+    text.replace(inlineMath, QStringLiteral(R"(\(\1\))"));
+    return text;
+}
+
+QString ankiField(const QString &text) {
+    QString out = ankiMath(text.trimmed()).toHtmlEscaped();
+    out.replace('\t', ' ');
+    out.replace('\n', QStringLiteral("<br>"));
+    return out;
+}
+
+QString plainField(const QString &text) {
+    QString out = text.trimmed();
+    out.replace('\t', ' ');
+    out.replace(QRegularExpression(QStringLiteral(R"(\s*\n\s*)")), QStringLiteral(" / "));
+    return out;
+}
+
+} // namespace
+
+QString Cards::exportText(const QVariantList &cards, const QString &format, const QVariantMap &bookTitles) {
+    QString out;
+    const bool anki = format == "anki";
+    if (anki)
+        out += QStringLiteral("#separator:tab\n#html:true\n#notetype:Basic\n#deck column:3\n");
+    for (const QVariant &v : cards) {
+        const QVariantMap card = v.toMap();
+        if (anki) {
+            QString title = bookTitles.value(card.value("bookId").toString()).toString().simplified();
+            title.replace("::", ":");
+            title.replace('\t', ' ');
+            out += ankiField(card.value("front").toString()) + '\t' + ankiField(card.value("back").toString()) + '\t'
+                   + (title.isEmpty() ? QStringLiteral("Shelf") : QStringLiteral("Shelf::") + title) + '\n';
+        } else {
+            out += plainField(card.value("front").toString()) + '\t' + plainField(card.value("back").toString()) + '\n';
+        }
+    }
+    return out;
+}

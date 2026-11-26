@@ -156,6 +156,10 @@ ApplicationWindow {
             Qt.callLater(() => showTab(Math.max(1, tabOf(active))))
     }
 
+    // Ticks every minute, for tabs that rest when unused.
+    property double clock: Date.now()
+    Timer { interval: 60000; running: true; repeat: true; onTriggered: win.clock = Date.now() }
+
     // The library sidebar beside every tab, shown or hidden.
     property bool sidebarOpen: library.setting("sidebarOpen", true) === true
     function toggleSidebar() {
@@ -163,12 +167,27 @@ ApplicationWindow {
         library.setSetting("sidebarOpen", sidebarOpen)
     }
     Shortcut { sequence: "Ctrl+B"; context: Qt.ApplicationShortcut; onActivated: win.toggleSidebar() }
+    Shortcut { sequence: "Ctrl+,"; context: Qt.ApplicationShortcut; onActivated: win.openSettings("") }
 
     // The library tab, with the whole library in a big view.
     function showLibrary() { showTab(0) }
 
-    function showToast(message) { toast.show(message) }
-    function openAiSettings() { aiSettings.open() }
+    function showToast(message, actionLabel, onAction) { toast.show(message, actionLabel, onAction) }
+
+    // Deletes a collection at once (its books stay in the library); the
+    // toast's Undo brings it back with the same books.
+    function deleteCollection(name) {
+        const members = library.collectionMembers(name)
+        library.deleteCollection(name)
+        toast.show(qsTr("Deleted the collection “%1”.").arg(name), qsTr("Undo"), () => {
+            library.createCollection(name)
+            if (members.length > 0)
+                library.addToCollection(members, name)
+        })
+    }
+    function openAiSettings() { settingsPopup.openAt("ai") }
+    // Settings, at a section: "ai", "backup", "about" or "help".
+    function openSettings(section) { settingsPopup.openAt(section) }
     function openReview() { reviewPopup.open() }
     // An animated lesson about a passage or question (see LessonPopup).
     function explainVisually(input) { lessonPopup.explain(input) }
@@ -216,7 +235,7 @@ ApplicationWindow {
     }
     function openSearch() { searchPopup.open() }
     function openGraph(bookId) { graphPopup.openFor(bookId) }
-    function openAbout() { aboutPopup.open() }
+    function openAbout() { settingsPopup.openAt("about") }
     function openPractice(book, outline, index) { practicePopup.openFor(book, outline, index) }
     // Opens a book at a place (a PDF page, or an EPUB section): the reader
     // goes there once it has loaded, or at once if it already has.
@@ -434,6 +453,14 @@ ApplicationWindow {
                         required property string format
                         required property bool renameFirst
                         readonly property bool current: StackLayout.isCurrentItem
+                        // A tab not looked at for 20 minutes lets go of its
+                        // reader to save memory (each EPUB tab is a web page
+                        // of its own) and opens again where it was left,
+                        // since the place is saved as you read. Tabs brought
+                        // back at startup wait until they're first shown.
+                        property double lastSeen: 0
+                        onCurrentChanged: lastSeen = Date.now()
+                        active: current || win.clock - lastSeen < 20 * 60000
                         sourceComponent: format === "workspace" ? workspacePage : format === "pdf" ? pdfReader : epubReader
 
                         Component {
@@ -506,16 +533,33 @@ ApplicationWindow {
             onDismissed: win.helpVisible = false
         }
 
-        AiSettings { id: aiSettings }
+        SettingsPopup { id: settingsPopup }
         LearnCourse { id: learnCourse }
         ReviewPopup { id: reviewPopup }
         LessonPopup { id: lessonPopup }
         SearchPopup { id: searchPopup }
         GraphPopup { id: graphPopup }
-        AboutPopup { id: aboutPopup }
+        // A weekly backup, when it's on, a while after starting so it
+        // never slows the start; and what a backup said while no settings
+        // window was open to show it.
+        Timer {
+            interval: 90000
+            running: true
+            onTriggered: backup.createIfDue()
+        }
+        Connections {
+            target: backup
+            function onChanged() {
+                if (settingsPopup.visible)
+                    return
+                if (backup.state === "failed" || backup.state === "restored")
+                    toast.show(backup.message)
+            }
+        }
+        Component.onCompleted: if (backup.state === "restored") toast.show(backup.message)
         Connections {
             target: updater
-            function onFound(version) { win.showToast(qsTr("Shelf %1 is available: see About Shelf in the library.").arg(version)) }
+            function onFound(version) { win.showToast(qsTr("Shelf %1 is available: see Settings › Updates and about.").arg(version)) }
         }
         PracticePopup { id: practicePopup }
 

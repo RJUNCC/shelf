@@ -85,6 +85,12 @@ void PortalFilePicker::pickBooks(const QString &title) {
                                  {1, "text/markdown"}, {0, "*.pdf"}, {0, "*.docx"}, {0, "*.odt"}, {0, "*.html"},
                                  {0, "*.htm"}, {0, "*.txt"}, {0, "*.md"}}},
           }
+        : kind == "backup"
+        ? QList<Filter>{
+              {tr("Shelf backups"), {{0, "*.shelfbackup"}}},
+          }
+        : kind == "folder"
+        ? QList<Filter>{}
         : kind == "slides"
         ? QList<Filter>{
               {tr("Slides"), {{1, "application/pdf"}, {1, pptx}, {0, "*.pdf"}, {0, "*.pptx"}}},
@@ -98,8 +104,11 @@ void PortalFilePicker::pickBooks(const QString &title) {
           };
     QVariantMap options{{"handle_token", token},
                         {"multiple", kind == "books" || kind == "slides"},
-                        {"modal", true},
-                        {"filters", QVariant::fromValue(filters)}};
+                        {"modal", true}};
+    if (kind == "folder")
+        options.insert("directory", true);
+    else
+        options.insert("filters", QVariant::fromValue(filters));
 
     QDBusMessage call = QDBusMessage::createMethodCall("org.freedesktop.portal.Desktop",
                                                        "/org/freedesktop/portal/desktop",

@@ -8,8 +8,12 @@ Rectangle {
     id: toast
     signal dismissed()
 
-    function show(message) {
+    // An optional action ("Undo") runs `onAction` when clicked.
+    property var onAction: null
+    function show(message, actionLabel, onAction) {
         label.text = message
+        action.text = actionLabel || ""
+        toast.onAction = onAction || null
         visible = true
         timer.restart()
     }
@@ -31,6 +35,19 @@ Rectangle {
             id: label
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
+        }
+        Button {
+            id: action
+            visible: text !== ""
+            flat: true
+            Material.foreground: theme.accent
+            onClicked: {
+                const run = toast.onAction
+                toast.visible = false
+                toast.dismissed()
+                if (run)
+                    run()
+            }
         }
         ToolButton {
             text: "✕"

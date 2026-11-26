@@ -71,6 +71,8 @@ public:
 
     Q_INVOKABLE bool createCollection(const QString &name);
     Q_INVOKABLE void deleteCollection(const QString &name);
+    // The ids of the books in a collection.
+    Q_INVOKABLE QStringList collectionMembers(const QString &name) const;
     Q_INVOKABLE void setInCollection(const QString &id, const QString &name, bool member);
     // For several books at once (the library's select mode), saving once.
     // addToCollection creates the collection if it is new and returns how
@@ -81,6 +83,9 @@ public:
 
     Q_INVOKABLE QVariant setting(const QString &key, const QVariant &fallback = {}) const;
     Q_INVOKABLE void setSetting(const QString &key, const QVariant &value);
+    // Forgets settings whose names start with `prefix` ("tip:" brings the
+    // first-use tips back); settingsReset() follows.
+    Q_INVOKABLE void resetSettings(const QString &prefix);
 
     Q_INVOKABLE void clearMessage();
     // Redraws the library after reading, when progress changed quietly.
@@ -95,6 +100,7 @@ signals:
     void viewChanged();
     void collectionsChanged();
     void messageChanged();
+    void settingsReset();
     // A book arrived from outside (file manager, command line, drop) and
     // should be shown to the user.
     void openRequested(const QString &id);

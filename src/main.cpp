@@ -21,6 +21,9 @@
 #include "workspaces.h"
 #include "explainer.h"
 #include "voice.h"
+#include "backup.h"
+#include "diagnostics.h"
+#include <QThread>
 #include "updater.h"
 #include "booksearch.h"
 #include "practicetest.h"
@@ -51,6 +54,7 @@ int main(int argc, char *argv[]) {
     QGuiApplication app(argc, argv);
     app.setApplicationName("shelf");
     app.setApplicationVersion(SHELF_VERSION);
+    Diagnostics::installLog();
 
     // Books from the command line (the file manager passes them here), made
     // absolute now because a running instance has a different working dir.
@@ -75,9 +79,18 @@ int main(int argc, char *argv[]) {
 #else
     SingleInstance instance("shelf-" + QString::number(getuid()));
 #endif
-    if (instance.forwardToRunning(files))
+    // Started again by Shelf itself (after an update or a restore): wait
+    // for the old one to be gone rather than handing over to it.
+    if (app.arguments().contains("--restarted")) {
+        for (int i = 0; i < 50 && instance.isRunning(); ++i)
+            QThread::msleep(200);
+    } else if (instance.forwardToRunning(files)) {
         return 0;
+    }
     instance.listen();
+
+    // A backup chosen to restore goes in place before anything is loaded.
+    const QString restored = Backup::applyPending();
 
     QQuickStyle::setStyle("Material");
 
@@ -88,9 +101,9 @@ int main(int argc, char *argv[]) {
 
     Theme theme;
 #ifdef Q_OS_WIN
-    WindowsFilePicker picker, slidePicker;
+    WindowsFilePicker picker, slidePicker, backupFolderPicker, backupFilePicker;
 #else
-    PortalFilePicker picker, slidePicker;
+    PortalFilePicker picker, slidePicker, backupFolderPicker, backupFilePicker;
 #endif
     Library library({}, {}, &picker);
     Annotations annotations;
@@ -115,6 +128,10 @@ int main(int argc, char *argv[]) {
     Workspaces workspaces(&library, &slidePicker);
     Explainer explainer(&ollama);
     Voice voice(&library);
+    Backup backup(&library, &backupFolderPicker, &backupFilePicker);
+    backup.setRestored(restored);
+    backup.setCards(&cards);
+    Diagnostics diagnostics(&library, &ollama, &voice);
     QObject::connect(&app, &QGuiApplication::aboutToQuit, &library, &Library::flush);
 
     SchemeHandler scheme(&library);
@@ -138,6 +155,8 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty("workspaces", &workspaces);
     engine.rootContext()->setContextProperty("explainer", &explainer);
     engine.rootContext()->setContextProperty("voice", &voice);
+    engine.rootContext()->setContextProperty("backup", &backup);
+    engine.rootContext()->setContextProperty("diagnostics", &diagnostics);
     engine.rootContext()->setContextProperty("bookSearch", &bookSearch);
     // A finished outline brings OCR text that search should use.
     QObject::connect(&outlines, &Outlines::changed, &bookSearch, &BookSearch::forget);

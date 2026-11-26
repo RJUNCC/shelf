@@ -11,15 +11,6 @@ Rectangle {
     color: "#131316"
     implicitWidth: 270
 
-    readonly property var shelves: [
-        { key: "all", label: qsTr("All books") },
-        { key: "reading", label: qsTr("Reading") },
-        { key: "finished", label: qsTr("Finished") },
-        { key: "epub", label: qsTr("EPUB") },
-        { key: "pdf", label: qsTr("PDF") }
-    ]
-    // Shelves, then the user's collections, for the filter above the books.
-    readonly property var filters: shelves.concat(library.collections.map(c => ({ key: "collection:" + c, label: "◆ " + c })))
     readonly property bool typing: bookSearch.activeFocus || collectionDialog.visible || removeDialog.visible
     readonly property string openBookId: win.currentTab > 0 && win.currentTab <= tabs.count ? tabs.get(win.currentTab - 1).bookId : ""
 
@@ -60,15 +51,11 @@ Rectangle {
         RowLayout {
             Layout.fillWidth: true
             spacing: 4
-            ComboBox {
+            ShelfPicker {
                 id: filterBox
                 Layout.fillWidth: true
                 implicitHeight: 36
                 font.pixelSize: 13
-                model: sidebar.filters
-                textRole: "label"
-                currentIndex: Math.max(0, sidebar.filters.findIndex(f => f.key === library.shelf))
-                onActivated: library.shelf = sidebar.filters[currentIndex].key
             }
             ToolButton {
                 text: "⋯"
@@ -238,16 +225,12 @@ Rectangle {
                 onClicked: { seen = true; win.openLearn() }
             }
             ToolCell {
-                glyph: "ⓘ"
-                tip: qsTr("About Shelf")
-                dot: updater.state === "available" || updater.state === "installed" ? theme.accent : "transparent"
-                onClicked: win.openAbout()
-            }
-            ToolCell {
-                glyph: "✦"
-                tip: qsTr("Local AI and voices")
-                dot: ollama.status === "ready" ? "#6fd08c" : ollama.status === "checking" ? "#55555e" : "#f5b347"
-                onClicked: win.openAiSettings()
+                glyph: "⚙"
+                tip: qsTr("Settings: local AI and voices, backup, updates, help")
+                // An update waiting, else whether the local AI is set up.
+                dot: updater.state === "available" || updater.state === "installed" ? theme.accent
+                     : ollama.status === "ready" ? "#6fd08c" : ollama.status === "checking" ? "#55555e" : "#f5b347"
+                onClicked: win.openSettings("")
                 Component.onCompleted: ollama.refresh()
             }
         }
@@ -284,10 +267,7 @@ Rectangle {
         MenuItem {
             enabled: library.shelf.startsWith("collection:")
             text: qsTr("Delete this collection")
-            onTriggered: {
-                library.deleteCollection(library.shelf.substring(11))
-                library.shelf = "all"
-            }
+            onTriggered: win.deleteCollection(library.shelf.substring(11))
         }
         MenuSeparator {}
         MenuItem {
@@ -375,16 +355,6 @@ Rectangle {
             wrapMode: Text.WordWrap
             text: qsTr("It leaves your library and its reading position is forgotten. The file itself stays where it is.")
             opacity: 0.75
-        }
-    }
-
-    Menu {
-        id: collectionMenu
-        property string name
-        Material.roundedScale: theme.radius
-        MenuItem {
-            text: qsTr("Delete collection")
-            onTriggered: library.deleteCollection(collectionMenu.name)
         }
     }
 

@@ -34,6 +34,14 @@ bool SingleInstance::forwardToRunning(const QStringList &paths) {
     return true;
 }
 
+bool SingleInstance::isRunning() {
+    QLocalSocket socket;
+    socket.connectToServer(m_name);
+    const bool answered = socket.waitForConnected(300);
+    socket.abort();
+    return answered;
+}
+
 bool SingleInstance::listen() {
     // A crashed instance leaves its socket file behind; nobody answered on
     // it, so it is safe to remove.

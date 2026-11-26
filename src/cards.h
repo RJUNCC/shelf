@@ -53,6 +53,12 @@ public:
     // When a grade would bring the card back, short: "10 min", "3 d".
     Q_INVOKABLE QString preview(const QString &id, int grade) const;
 
+    // The cards as a text file other apps import. "anki": tab-separated
+    // with Anki's header lines (HTML, LaTeX as Anki's \( \) and \[ \], a
+    // deck per book under "Shelf::"); "quizlet": term, tab, definition, one
+    // card per line. `bookTitles` maps book ids to titles.
+    static QString exportText(const QVariantList &cards, const QString &format, const QVariantMap &bookTitles);
+
     // Tests fix the clock.
     void setNow(qint64 ms) { m_now = ms; }
 

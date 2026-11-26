@@ -287,12 +287,7 @@ void Updater::installFile(const QString &path) {
 }
 
 void Updater::restart() {
-#ifdef Q_OS_WIN
-    QProcess::startDetached(QCoreApplication::applicationFilePath(), {});
-#else
-    // Started a moment after this one has gone, or it would hand itself
-    // over to this instance.
-    QProcess::startDetached("sh", {"-c", "sleep 1; exec \"$0\"", QCoreApplication::applicationFilePath()});
-#endif
+    // The new Shelf waits for this one to be gone (see "--restarted" in main).
+    QProcess::startDetached(QCoreApplication::applicationFilePath(), {"--restarted"});
     QCoreApplication::quit();
 }

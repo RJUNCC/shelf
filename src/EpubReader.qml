@@ -724,4 +724,21 @@ FocusScope {
         opacity: 0.55
         Layout.bottomMargin: -8
     }
+
+    // What can be done here, the first time.
+    TipCard {
+        key: "reader"
+        title: qsTr("Reading here")
+        z: 50
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.margins: 18
+        when: reader.active
+        lines: [
+            qsTr("Select text to highlight it, write a note, or ask the AI to explain it."),
+            qsTr("<b>T</b> shows the outline, <b>B</b> bookmarks the page, <b>?</b> lists every shortcut."),
+            qsTr("<b>Ctrl+K</b> asks the AI about the whole book, with page references."),
+            qsTr("Right-click a chapter in the outline for a practice test on it.")
+        ]
+    }
 }

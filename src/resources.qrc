@@ -1,7 +1,7 @@
 <RCC>
     <qresource prefix="/">
         <file alias="AccentButton.qml">AccentButton.qml</file>
-        <file alias="AiSettings.qml">AiSettings.qml</file>
+        <file alias="AiSettingsPage.qml">AiSettingsPage.qml</file>
         <file alias="AiPanel.qml">AiPanel.qml</file>
         <file alias="RichText.qml">RichText.qml</file>
         <file alias="WorkspacePage.qml">WorkspacePage.qml</file>
@@ -24,7 +24,10 @@
         <file alias="PracticePopup.qml">PracticePopup.qml</file>
         <file alias="ToolPanel.qml">ToolPanel.qml</file>
         <file alias="GraphPopup.qml">GraphPopup.qml</file>
-        <file alias="AboutPopup.qml">AboutPopup.qml</file>
+        <file alias="AboutPage.qml">AboutPage.qml</file>
+        <file alias="SettingsPopup.qml">SettingsPopup.qml</file>
+        <file alias="BackupPage.qml">BackupPage.qml</file>
+        <file alias="HelpPage.qml">HelpPage.qml</file>
         <file alias="LibraryPage.qml">LibraryPage.qml</file>
         <file alias="Main.qml">Main.qml</file>
         <file alias="NoteEditor.qml">NoteEditor.qml</file>
@@ -38,6 +41,8 @@
         <file alias="SidebarItem.qml">SidebarItem.qml</file>
         <file alias="TabStrip.qml">TabStrip.qml</file>
         <file alias="Toast.qml">Toast.qml</file>
+        <file alias="ShelfPicker.qml">ShelfPicker.qml</file>
+        <file alias="TipCard.qml">TipCard.qml</file>
         <file alias="ToolbarButton.qml">ToolbarButton.qml</file>
         <file>icons/bookmark-filled.svg</file>
         <file>icons/graph.svg</file>

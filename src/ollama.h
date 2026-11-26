@@ -78,6 +78,9 @@ public:
     Q_INVOKABLE void cancelPull();
     // Whether the Ollama program is on this computer, running or not.
     Q_INVOKABLE bool installed() const;
+    // Starts Ollama when it's installed but not running (the Ollama app on
+    // Windows, `ollama serve` elsewhere); refresh() follows a moment later.
+    Q_INVOKABLE void start();
     QDateTime checked() const { return m_checked; }
 
     // Asks Ollama which models are installed.

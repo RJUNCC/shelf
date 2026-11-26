@@ -19,6 +19,8 @@ HEADERS += \
     src/slides.h \
     src/explainer.h \
     src/voice.h \
+    src/backup.h \
+    src/diagnostics.h \
     src/workspaces.h \
     src/updater.h \
     src/bookmeta.h \
@@ -51,6 +53,8 @@ SOURCES += \
     src/slides.cpp \
     src/explainer.cpp \
     src/voice.cpp \
+    src/backup.cpp \
+    src/diagnostics.cpp \
     src/workspaces.cpp \
     src/updater.cpp \
     src/bookmeta.cpp \

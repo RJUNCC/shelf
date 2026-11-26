@@ -34,13 +34,21 @@ void WindowsFilePicker::pickBooks(const QString &title) {
                                                {L"PDF", L"*.pdf"}, {L"PowerPoint", L"*.pptx"}};
             const COMDLG_FILTERSPEC documents[] = {
                 {L"Documents (*.pdf, *.docx, *.odt, *.html, *.txt, *.md)", L"*.pdf;*.docx;*.odt;*.html;*.htm;*.txt;*.md"}};
+            const COMDLG_FILTERSPEC backups[] = {{L"Shelf backups (*.shelfbackup)", L"*.shelfbackup"}};
             if (kind == "documents")
                 dialog->SetFileTypes(1, documents);
-            else
+            else if (kind == "backup")
+                dialog->SetFileTypes(1, backups);
+            else if (kind != "folder")
                 dialog->SetFileTypes(3, kind == "slides" ? decks : books);
             DWORD options = 0;
             dialog->GetOptions(&options);
-            dialog->SetOptions(options | FOS_ALLOWMULTISELECT | FOS_FILEMUSTEXIST | FOS_FORCEFILESYSTEM);
+            options |= FOS_FORCEFILESYSTEM;
+            if (kind == "folder")
+                options |= FOS_PICKFOLDERS;
+            else
+                options |= FOS_FILEMUSTEXIST | (kind == "books" || kind == "slides" ? FOS_ALLOWMULTISELECT : 0);
+            dialog->SetOptions(options);
             dialog->SetTitle(reinterpret_cast<LPCWSTR>(title.utf16()));
             HWND owner = nullptr;
             if (QWindow *window = QGuiApplication::focusWindow())

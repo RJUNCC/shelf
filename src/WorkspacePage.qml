@@ -2385,4 +2385,21 @@ FocusScope {
             }
         }
     }
+
+    // What can be done here, the first time.
+    TipCard {
+        key: "workspace"
+        title: qsTr("Studying slides")
+        z: 50
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.margins: 18
+        when: page.active
+        lines: [
+            qsTr("<b>Add slides</b> (PDF or PowerPoint) from a course, or drop them here."),
+            qsTr("<b>Explain this slide</b> makes a short animated lesson; <b>T</b> starts a practice test."),
+            qsTr("Select text on a slide to copy it, add it to your notes, or explain it; <b>Ctrl+F</b> finds words."),
+            qsTr("The <b>Study plan</b> turns your exam review into a day-by-day plan.")
+        ]
+    }
 }

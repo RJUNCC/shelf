@@ -3,21 +3,13 @@ import QtQuick.Controls
 import QtQuick.Controls.Material
 import QtQuick.Layouts
 
-// Local AI settings: whether Ollama is there and running, which model, where
+// Settings › Local AI: whether Ollama is there and running, which model, where
 // it runs, and a test that proves it answers.
-Popup {
+Item {
     id: settings
-    anchors.centerIn: Overlay.overlay
-    width: Math.min(500, (parent ? parent.width : 520) - 40)
-    height: Math.min(scroller.contentHeight + topPadding + bottomPadding, (parent ? parent.height : 800) - 40)
-    modal: true
-    focus: true
-    padding: 22
-    closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-    Material.roundedScale: theme.radius
-    background: Rectangle { color: "#1b1b20"; radius: theme.radius; border.color: "#2c2c33" }
-
-    onOpened: ollama.refresh()
+    // Done, or a sample lesson started: the settings window closes.
+    signal closeRequested()
+    function refresh() { ollama.refresh() }
 
     readonly property bool linux: Qt.platform.os === "linux"
 
@@ -106,6 +98,70 @@ Popup {
                         return qsTr("Looking for Ollama…")
                     }
                 }
+            }
+        }
+
+        // Getting Ollama: the steps, with Shelf noticing each one done.
+        Rectangle {
+            visible: ollama.status === "notInstalled" || ollama.status === "notRunning"
+            Layout.fillWidth: true
+            implicitHeight: setupColumn.implicitHeight + 24
+            radius: Math.min(8, theme.radius)
+            color: "#1f1f25"
+            border.color: "#2c2c33"
+            ColumnLayout {
+                id: setupColumn
+                anchors.fill: parent
+                anchors.margins: 12
+                spacing: 10
+                Label {
+                    text: qsTr("Set up the local AI")
+                    font.weight: Font.DemiBold
+                }
+                SetupStep {
+                    number: 1
+                    done: ollama.status !== "notInstalled"
+                    text: settings.linux
+                          ? qsTr("Install Ollama. On Arch or Omarchy: <tt>sudo pacman -S ollama-cuda</tt> (NVIDIA) or <tt>ollama</tt>; elsewhere see <a href=\"https://ollama.com/download/linux\">ollama.com</a>.")
+                          : qsTr("Download Ollama and run its installer. It's free and takes a minute.")
+                    AccentButton {
+                        visible: !settings.linux && ollama.status === "notInstalled"
+                        text: qsTr("Download Ollama")
+                        onClicked: Qt.openUrlExternally(Qt.platform.os === "osx" ? "https://ollama.com/download/mac"
+                                                                                  : "https://ollama.com/download/windows")
+                    }
+                }
+                SetupStep {
+                    number: 2
+                    done: false
+                    text: settings.linux
+                          ? qsTr("Start it: <tt>sudo systemctl enable --now ollama</tt>, or the button here for now.")
+                          : qsTr("Start Ollama. The installer usually starts it; if not, use the button.")
+                    Button {
+                        visible: ollama.status === "notRunning"
+                        text: qsTr("Start Ollama")
+                        onClicked: ollama.start()
+                    }
+                }
+                SetupStep {
+                    number: 3
+                    done: false
+                    text: qsTr("Pick a model here. Shelf suggests one that fits your computer.")
+                }
+                Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    font.pixelSize: 11
+                    opacity: 0.5
+                    text: qsTr("Shelf checks every few seconds, so each step ticks itself off.")
+                }
+            }
+            // Noticing the install or start without a click.
+            Timer {
+                running: parent.visible && settings.visible
+                interval: 4000
+                repeat: true
+                onTriggered: ollama.refresh()
             }
         }
 
@@ -427,7 +483,7 @@ Popup {
                     flat: true
                     text: qsTr("Play a sample lesson")
                     icon.source: "image://icon/sparkle?color=" + encodeURIComponent(theme.accent)
-                    onClicked: { settings.close(); win.playSample() }
+                    onClicked: { settings.closeRequested(); win.playSample() }
                 }
                 Item { Layout.fillWidth: true }
                 Button {
@@ -450,11 +506,48 @@ Popup {
             Item { Layout.fillWidth: true }
             AccentButton {
                 text: qsTr("Done")
-                onClicked: settings.close()
+                onClicked: settings.closeRequested()
             }
         }
     }
 
+    }
+
+    // A numbered step of the Ollama setup, with room for a button.
+    component SetupStep: RowLayout {
+        id: step
+        property int number
+        property bool done
+        property string text
+        default property alias extra: buttons.data
+        Layout.fillWidth: true
+        spacing: 10
+        Rectangle {
+            Layout.alignment: Qt.AlignTop
+            width: 22; height: 22; radius: 11
+            color: step.done ? "#2f5d3c" : "#2c2c33"
+            Label {
+                anchors.centerIn: parent
+                text: step.done ? "✓" : step.number
+                font.pixelSize: 12
+                color: step.done ? "#6fd08c" : "#c8c8ce"
+            }
+        }
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 6
+            Label {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                textFormat: Text.StyledText
+                linkColor: theme.accent
+                onLinkActivated: link => Qt.openUrlExternally(link)
+                font.pixelSize: 13
+                opacity: step.done ? 0.55 : 0.9
+                text: step.text
+            }
+            RowLayout { id: buttons }
+        }
     }
 
     component SectionLabel: Label {
