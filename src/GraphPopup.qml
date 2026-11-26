@@ -30,18 +30,56 @@ Popup {
 
     function openFor(id) {
         bookId = id || ""
-        books = library.allBooks().filter(b => annotations.count(b.id) > 0)
+        // Books with highlights or notes, and books slides link to.
+        const linked = new Set()
+        for (const w of workspaces.list)
+            for (const d of workspaces.workspace(w.id).decks || [])
+                for (const sl of d.slides || [])
+                    for (const l of sl.links || [])
+                        linked.add(l.bookId)
+        books = library.allBooks().filter(b => annotations.count(b.id) > 0 || linked.has(b.id))
         open()
     }
     onOpened: refresh()
     function refresh() {
         if (!visible)
             return
-        const data = knowledge.graph(shownBooks)
-        itemCount = data.nodes.filter(n => n.kind === "highlight" || n.kind === "note").length
+        const data = withSlides(knowledge.graph(shownBooks))
+        itemCount = data.nodes.filter(n => n.kind === "highlight" || n.kind === "note" || n.kind === "slide").length
         pendingCount = knowledge.pending(shownBooks)
         if (pageReady)
             web.runJavaScript("Graph.update(" + JSON.stringify(data) + ")")
+    }
+    // Lecture slides linked to the books shown join the graph, beside the
+    // chapter they link to (or the book).
+    function withSlides(data) {
+        const shown = new Set(shownBooks.map(b => b.id))
+        const ids = new Set(data.nodes.map(n => n.id))
+        for (const w of workspaces.list) {
+            const ws = workspaces.workspace(w.id)
+            for (const d of ws.decks || []) {
+                (d.slides || []).forEach((sl, index) => {
+                    const links = (sl.links || []).filter(l => shown.has(l.bookId))
+                    if (links.length === 0)
+                        return
+                    const slideId = "s:" + w.id + ":" + d.id + ":" + index
+                    data.nodes.push({ id: slideId, kind: "slide", label: sl.title || qsTr("Slide %1").arg(index + 1),
+                                      workspace: ws.name, workspaceId: w.id, deckId: d.id, slide: index })
+                    for (const l of links) {
+                        const bookNode = "b:" + l.bookId
+                        if (!ids.has(bookNode)) {
+                            ids.add(bookNode)
+                            data.nodes.push({ id: bookNode, kind: "book", label: library.book(l.bookId).title || "", bookId: l.bookId })
+                        }
+                        const title = String(l.label || "").replace(/^\S*\d\S*\s+/, "").toLowerCase()
+                        const chapter = data.nodes.find(n => n.kind === "chapter" && n.bookId === l.bookId
+                                                             && n.label.toLowerCase() === title)
+                        data.links.push({ source: chapter ? chapter.id : bookNode, target: slideId })
+                    }
+                })
+            }
+        }
+        return data
     }
     function pushFilter() {
         if (pageReady)
@@ -68,6 +106,8 @@ Popup {
                 accent: String(theme.accent),
                 strings: {
                     "Open in the book": qsTr("Open in the book"),
+                    "Slide in %1": qsTr("Slide in %1"),
+                    "Open the slide": qsTr("Open the slide"),
                     "%1 passages in %2 books": qsTr("%1 passages in %2 books"),
                     "%1 highlights and notes": qsTr("%1 highlights and notes"),
                     "Book": qsTr("Book")
@@ -80,6 +120,10 @@ Popup {
         function open(json) {
             const item = JSON.parse(json)
             graphPopup.close()
+            if (item.workspaceId) {
+                win.openWorkspaceAt(item.workspaceId, item.deckId, item.slide)
+                return
+            }
             win.openBookAt(item.bookId, item.format === "pdf" ? parseInt(item.location) : item.location)
         }
     }

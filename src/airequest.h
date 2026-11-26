@@ -39,6 +39,8 @@ public:
     // The prompt for an action, kept separate so tests can read it.
     static QString prompt(const QString &action, const QVariantMap &input);
     static QString systemPrompt();
+    // How to write formulas, diagrams and charts so Shelf can draw them.
+    static QString visualGuide();
 
 signals:
     void changed();

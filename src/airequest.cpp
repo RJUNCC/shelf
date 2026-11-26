@@ -27,7 +27,31 @@ QString AiRequest::systemPrompt() {
         "You are a study assistant inside an e-book reader, helping a student understand what they are "
         "reading. Answer in clear, plain English using Markdown: short paragraphs, bullet points where they "
         "help, bold for key terms. Be accurate and concise. Base your answer on the passage; if you add "
-        "something the passage does not say, make that clear. Never invent page numbers or quotations.");
+        "something the passage does not say, make that clear. Never invent page numbers or quotations.\n\n")
+        + visualGuide();
+}
+
+QString AiRequest::visualGuide() {
+    // Shelf draws these (src/web/rich), so answers can be visual rather
+    // than numbers in plain text.
+    return QStringLiteral(
+        "Make answers visual and easy to take in:\n"
+        "- Write every formula, equation and symbol in LaTeX between dollar signs, like $F = ma$ or "
+        "$v_0$, and a formula on its own line between double dollar signs, like $$v = v_0 + at$$. "
+        "Write chemical formulas and reactions with \\ce, like $\\ce{C6H12O6 + 6O2 -> 6CO2 + 6H2O}$. "
+        "Never write a formula as plain text.\n"
+        "- When explaining a process, cycle, sequence or hierarchy, add a diagram as a Mermaid code block "
+        "(```mermaid), usually a flowchart (flowchart LR or flowchart TD) with short labels in quotes, like "
+        "A[\"Glucose\"] --> B[\"Pyruvate\"].\n"
+        "- When one quantity depends on another, you may add a chart as a code block marked chart holding "
+        "JSON, either from a formula: {\"title\": \"Distance fallen\", \"formula\": \"0.5*9.81*t^2\", "
+        "\"variable\": \"t\", \"from\": 0, \"to\": 5, \"xLabel\": \"t (s)\", \"yLabel\": \"d (m)\"} "
+        "or from values: {\"type\": \"bar\", \"x\": [\"A\", \"B\"], \"series\": [{\"name\": \"Count\", "
+        "\"values\": [3, 5]}]}.\n"
+        "- Put a definition in a blockquote starting with **Key term:**, a worked example in one starting "
+        "with **Example:**, and a common mistake in one starting with **Warning:**.\n"
+        "- Use a numbered list for steps.\n"
+        "Add a diagram or chart only when it really helps; most short answers need neither.");
 }
 
 QString AiRequest::prompt(const QString &action, const QVariantMap &input) {

@@ -3,6 +3,12 @@
         <file alias="AccentButton.qml">AccentButton.qml</file>
         <file alias="AiSettings.qml">AiSettings.qml</file>
         <file alias="AiPanel.qml">AiPanel.qml</file>
+        <file alias="RichText.qml">RichText.qml</file>
+        <file alias="WorkspacePage.qml">WorkspacePage.qml</file>
+        <file alias="LibrarySidebar.qml">LibrarySidebar.qml</file>
+        <file alias="LessonPlayer.qml">LessonPlayer.qml</file>
+        <file alias="LessonPopup.qml">LessonPopup.qml</file>
+        <file alias="StudyPlan.qml">StudyPlan.qml</file>
         <file alias="AiOutlineCard.qml">AiOutlineCard.qml</file>
         <file alias="BookCard.qml">BookCard.qml</file>
         <file alias="BookCover.qml">BookCover.qml</file>
@@ -51,6 +57,11 @@
         <file>icons/ask.svg</file>
         <file>icons/outline.svg</file>
         <file>icons/pages.svg</file>
+        <file>icons/slides.svg</file>
+        <file>icons/sidebar.svg</file>
+        <file>icons/history.svg</file>
+        <file>icons/panel-right.svg</file>
+        <file>icons/sparkle.svg</file>
         <file>icons/plus.svg</file>
         <file>icons/redo.svg</file>
         <file>icons/search.svg</file>

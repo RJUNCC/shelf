@@ -18,6 +18,9 @@
 #include "annotations.h"
 #include "cards.h"
 #include "knowledgegraph.h"
+#include "workspaces.h"
+#include "explainer.h"
+#include "voice.h"
 #include "updater.h"
 #include "booksearch.h"
 #include "practicetest.h"
@@ -85,9 +88,9 @@ int main(int argc, char *argv[]) {
 
     Theme theme;
 #ifdef Q_OS_WIN
-    WindowsFilePicker picker;
+    WindowsFilePicker picker, slidePicker, audioPicker;
 #else
-    PortalFilePicker picker;
+    PortalFilePicker picker, slidePicker, audioPicker;
 #endif
     Library library({}, {}, &picker);
     Annotations annotations;
@@ -109,6 +112,9 @@ int main(int argc, char *argv[]) {
     PracticeTest::setOllama(&ollama);
     KnowledgeGraph knowledge(&annotations, &ollama);
     Updater updater(&library);
+    Workspaces workspaces(&library, &slidePicker);
+    Explainer explainer(&ollama);
+    Voice voice(&library, {}, &audioPicker);
     QObject::connect(&app, &QGuiApplication::aboutToQuit, &library, &Library::flush);
 
     SchemeHandler scheme(&library);
@@ -129,6 +135,9 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty("cards", &cards);
     engine.rootContext()->setContextProperty("knowledge", &knowledge);
     engine.rootContext()->setContextProperty("updater", &updater);
+    engine.rootContext()->setContextProperty("workspaces", &workspaces);
+    engine.rootContext()->setContextProperty("explainer", &explainer);
+    engine.rootContext()->setContextProperty("voice", &voice);
     engine.rootContext()->setContextProperty("bookSearch", &bookSearch);
     // A finished outline brings OCR text that search should use.
     QObject::connect(&outlines, &Outlines::changed, &bookSearch, &BookSearch::forget);

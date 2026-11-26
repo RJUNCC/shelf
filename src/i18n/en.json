@@ -54,5 +54,37 @@
   "%n result(s)": {
     "one": "%n result",
     "other": "%n results"
+  },
+  "Everything in the folder “%1” (%n deck(s))": {
+    "one": "Everything in the folder “%1” (%n deck)",
+    "other": "Everything in the folder “%1” (%n decks)"
+  },
+  "%n slide(s)": {
+    "one": "%n slide",
+    "other": "%n slides"
+  },
+  "%n slide(s) with this title, as it builds up": {
+    "one": "%n slide with this title",
+    "other": "%n slides with this title, as it builds up"
+  },
+  "Review: %n card(s) due": {
+    "one": "Review: %n card due",
+    "other": "Review: %n cards due"
+  },
+  "New folder for %n deck(s)": {
+    "one": "New folder for %n deck",
+    "other": "New folder for %n decks"
+  },
+  "%n deck(s) picked": {
+    "one": "%n deck picked",
+    "other": "%n decks picked"
+  },
+  "%n picked deck(s)": {
+    "one": "%n picked deck",
+    "other": "%n picked decks"
+  },
+  "%n explanation(s)": {
+    "one": "%n explanation",
+    "other": "%n explanations"
   }
 }

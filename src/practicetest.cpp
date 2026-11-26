@@ -22,7 +22,9 @@ Ollama *shared = nullptr;
 const QString systemPrompt = QStringLiteral(
     "You write practice tests for students from the text of their textbook. Every question must be "
     "answerable from the text given; never test something it does not say. Answer only with JSON in the "
-    "requested shape.");
+    "requested shape. In questions, answers and explanations, write formulas and symbols in LaTeX between "
+    "dollar signs, like $F = ma$ or $v_0$ (Shelf typesets them); in multiple-choice options, write them as "
+    "plain text with Unicode symbols, like x², √2, ×, →, because options are shown as plain text.");
 
 QJsonObject questionsSchema(const QStringList &allowed) {
     // One shape per kind of question, each with every field it needs
@@ -228,8 +230,8 @@ QVariantList PracticeTest::parseQuestions(const QByteArray &json) {
     QVariantList out;
     for (const QJsonValue &v : QJsonDocument::fromJson(json).object().value("questions").toArray()) {
         const QJsonObject q = v.toObject();
-        const QString question = q.value("question").toString().trimmed();
-        const QString answer = q.value("answer").toString().trimmed();
+        const QString question = Ollama::repairLatex(q.value("question").toString()).trimmed();
+        const QString answer = Ollama::repairLatex(q.value("answer").toString()).trimmed();
         const bool handsOn = QStringList{"code", "markov", "molecule", "scenario"}.contains(q.value("type").toString());
         // Hands-on answers are worked out by Shelf, so only the others need one.
         if (question.isEmpty() || (answer.isEmpty() && !handsOn))
@@ -239,7 +241,7 @@ QVariantList PracticeTest::parseQuestions(const QByteArray &json) {
             if (!c.toString().trimmed().isEmpty())
                 choices << c.toString().trimmed();
         const QString type = q.value("type").toString();
-        const QString why = q.value("why").toString().trimmed();
+        const QString why = Ollama::repairLatex(q.value("why").toString()).trimmed();
         if (type == "code") {
             // A function to write, checked by running test calls. A question
             // without a solution or tests can't be checked, so it is dropped.

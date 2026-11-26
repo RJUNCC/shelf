@@ -27,7 +27,8 @@ Rectangle {
         anchors.rightMargin: 6
         spacing: 2
 
-        // The library tab never closes.
+        // The library tab never closes: the whole library in a big view.
+        // The panel beside the tabs (LibrarySidebar) shows it compactly too.
         TabButtonItem {
             Layout.preferredWidth: implicitWidth
             Layout.alignment: Qt.AlignBottom
@@ -64,7 +65,7 @@ Rectangle {
                 width: list.tabWidth
                 y: list.height - height
                 z: dragging ? 2 : 0
-                iconName: model.format === "pdf" ? "pages" : "outline"
+                iconName: model.format === "workspace" ? "slides" : model.format === "pdf" ? "pages" : "outline"
                 title: model.title
                 active: strip.currentIndex === index + 1
                 draggable: true

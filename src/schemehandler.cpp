@@ -1,4 +1,7 @@
 #include "schemehandler.h"
+#include "voice.h"
+
+#include <QRegularExpression>
 
 #include "library.h"
 
@@ -42,6 +45,13 @@ void SchemeHandler::requestStarted(QWebEngineUrlRequestJob *job) {
         if (path == "/qwebchannel.js") {
             // Shipped inside Qt WebChannel's own resources.
             filePath = ":/qtwebchannel/qwebchannel.js";
+        } else if (path.startsWith("/voice/")) {
+            // Speech made for lessons (src/voice.cpp).
+            static const QRegularExpression name(QStringLiteral("^[0-9a-f]{40}\\.wav$"));
+            const QString file = path.mid(7);
+            if (!name.match(file).hasMatch())
+                return job->fail(QWebEngineUrlRequestJob::UrlNotFound);
+            filePath = Voice::speechDirectory() + "/" + file;
         } else if (path.startsWith("/pyodide/")) {
             // Python for code questions, too big to compile in; installed beside it.
             const QString name = path.mid(9);
@@ -67,6 +77,12 @@ void SchemeHandler::requestStarted(QWebEngineUrlRequestJob *job) {
             mime = "application/json";
         else if (filePath.endsWith(".zip"))
             mime = "application/zip";
+        else if (filePath.endsWith(".woff2"))
+            mime = "font/woff2";
+        else if (filePath.endsWith(".svg"))
+            mime = "image/svg+xml";
+        else if (filePath.endsWith(".wav"))
+            mime = "audio/wav";
         // Code questions run the student's (and the model's) code. It runs in
         // Chromium's sandbox already; this also keeps it from reaching
         // anything outside Shelf, so it can't send anything anywhere.
@@ -75,6 +91,13 @@ void SchemeHandler::requestStarted(QWebEngineUrlRequestJob *job) {
                 {{"Content-Security-Policy",
                   "default-src shelf:; script-src shelf: 'unsafe-eval' 'wasm-unsafe-eval'; "
                   "style-src shelf: 'unsafe-inline'; connect-src shelf:; worker-src shelf:; img-src shelf: data:"}});
+        // The AI's answers are drawn from Shelf's files only, so nothing in
+        // an answer (an image link, say) can make Shelf fetch anything.
+        else if (path.startsWith("/rich/"))
+            job->setAdditionalResponseHeaders(
+                {{"Content-Security-Policy",
+                  "default-src shelf:; script-src shelf:; style-src shelf: 'unsafe-inline'; font-src shelf:; "
+                  "img-src shelf: data:; media-src shelf: blob:; connect-src shelf:"}});
     } else if (host == "book") {
         // The id may carry a ".epub" suffix so foliate-js sees a file name.
         const QString id = path.mid(1).section('.', 0, 0);

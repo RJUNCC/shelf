@@ -47,6 +47,10 @@ public:
     // at following instructions and answering in JSON.
     static constexpr const char *suggestedModel = "qwen3:8b";
 
+    // LaTeX in a JSON answer often loses its backslash: "\frac" arrives as
+    // a form feed and "rac", "\times" as a tab and "imes". Puts them back.
+    static QString repairLatex(const QString &text);
+
     explicit Ollama(const QString &url = {}, QObject *parent = nullptr);
 
     QString status() const { return m_status; }

@@ -45,7 +45,30 @@ Popup {
         return n
     }
 
+    // Slides instead of a book: [{label, text}], one per choice of what to
+    // be tested on (a slide, a deck, a folder, the whole workspace).
+    property var scopes: []
+    property string scopeTitle: ""
+    function openForSlides(title, choices, index) {
+        book = ({})
+        entries = []
+        scopes = choices
+        scopeTitle = title
+        entryIndex = Math.max(0, Math.min(choices.length - 1, index))
+        test.reset()
+        answers = {}
+        current = 0
+        open()
+    }
+    // What the test is on, as the header and lessons show it.
+    function partLabel() {
+        if (scopes.length > 0)
+            return scopes[entryIndex] ? scopes[entryIndex].label : ""
+        return entries[entryIndex] ? entries[entryIndex].label : ""
+    }
+
     function openFor(bookMap, outline, index) {
+        scopes = []
         book = bookMap
         entries = outline
         entryIndex = Math.max(0, Math.min(outline.length - 1, index))
@@ -64,6 +87,11 @@ Popup {
     function start() {
         answers = {}
         current = 0
+        if (scopes.length > 0) {
+            const sc = scopes[entryIndex]
+            test.generate(sc.text, scopeTitle + " — " + sc.label, practice.count, practice.types)
+            return
+        }
         fetching = true
         const e = entries[entryIndex]
         bookSearch.chapterText({ id: book.id || "", title: book.title || "", path: book.path || "",
@@ -158,7 +186,7 @@ Popup {
             Label {
                 Layout.leftMargin: 8
                 Layout.fillWidth: true
-                text: practice.entries[practice.entryIndex] ? practice.entries[practice.entryIndex].label : ""
+                text: practice.partLabel()
                 font.pixelSize: 13
                 opacity: 0.55
                 elide: Text.ElideRight
@@ -184,10 +212,11 @@ Popup {
             visible: test.state === "" && !practice.fetching
             Layout.fillWidth: true
             spacing: 12
-            Label { text: qsTr("Part of the book"); font.pixelSize: 13; opacity: 0.7 }
+            Label { text: practice.scopes.length > 0 ? qsTr("Be tested on") : qsTr("Part of the book"); font.pixelSize: 13; opacity: 0.7 }
             ComboBox {
                 Layout.fillWidth: true
-                model: practice.entries.map(e => "    ".repeat(e.depth) + e.label)
+                model: practice.scopes.length > 0 ? practice.scopes.map(s => s.label)
+                                                  : practice.entries.map(e => "    ".repeat(e.depth) + e.label)
                 currentIndex: practice.entryIndex
                 onActivated: index => practice.entryIndex = index
             }
@@ -361,12 +390,11 @@ Popup {
                     font.pixelSize: 12
                     opacity: 0.55
                 }
-                Label {
+                RichText {
                     Layout.fillWidth: true
                     text: practice.question ? practice.question.question : ""
-                    wrapMode: Text.WordWrap
-                    font.pixelSize: 17
-                    lineHeight: 1.2
+                    fontSize: 17
+                    flickable: questionScroll.contentItem
                 }
                 // Multiple choice.
                 Repeater {
@@ -457,19 +485,41 @@ Popup {
                                   ? qsTr("Right so far: “%1”").arg(practice.answer.credit) : ""
                             wrapMode: Text.WordWrap
                         }
-                        Label {
-                            Layout.fillWidth: true
-                            visible: practice.question !== null && practice.question.type === "free"
-                            text: practice.question ? qsTr("Answer: %1").arg(practice.question.answer) : ""
-                            wrapMode: Text.WordWrap
-                            font.weight: Font.Medium
-                        }
-                        Label {
+                        // The model answer and the explanation, with any
+                        // formulas or diagrams drawn.
+                        RichText {
                             Layout.fillWidth: true
                             visible: text !== ""
-                            text: practice.question && practice.question.why ? practice.question.why : ""
-                            wrapMode: Text.WordWrap
-                            opacity: 0.7
+                            background: "#141418"
+                            flickable: questionScroll.contentItem
+                            text: {
+                                const q = practice.question
+                                if (!q || practice.answer === null || practice.answer.checking === true)
+                                    return ""
+                                const parts = []
+                                if (q.type === "free" && q.answer)
+                                    parts.push("**" + qsTr("Answer:") + "** " + q.answer)
+                                if (q.why)
+                                    parts.push(q.why)
+                                return parts.join("\n\n")
+                            }
+                        }
+                        // The same answer as an animated lesson.
+                        Button {
+                            visible: practice.answer !== null && practice.answer.checking !== true && ollama.status === "ready"
+                            flat: true
+                            text: qsTr("Explain visually")
+                            icon.source: "image://icon/sparkle?color=" + encodeURIComponent(theme.accent)
+                            onClicked: {
+                                const q = practice.question
+                                const answer = q.type === "choice" ? q.choices[q.answer] || q.answer : q.answer
+                                win.explainVisually({
+                                    key: "question:" + String(q.question).slice(0, 80),
+                                    title: practice.partLabel(),
+                                    text: q.question + "\n\nThe right answer: " + answer + "\n\n" + (q.why || ""),
+                                    notes: "", passages: [], sources: [], question: ""
+                                })
+                            }
                         }
                     }
                 }

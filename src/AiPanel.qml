@@ -36,7 +36,8 @@ Rectangle {
     readonly property var actions: [
         { key: "explain", label: qsTr("Explain") },
         { key: "summarize", label: qsTr("Summarize") },
-        { key: "quiz", label: qsTr("Quiz me") }
+        { key: "quiz", label: qsTr("Quiz me") },
+        { key: "visual", label: qsTr("Explain visually") }
     ]
     readonly property string actionLabel: request.action === "summarize" ? qsTr("Summary")
                                         : request.action === "quiz" ? qsTr("Flashcards")
@@ -46,6 +47,17 @@ Rectangle {
     function ask(action, question) {
         if (!target)
             return
+        // An animated lesson rather than a written answer.
+        if (action === "visual") {
+            const text = String(target.text || "")
+            win.explainVisually({
+                key: "passage:" + (book.id || "") + ":" + text.length + ":" + text.slice(0, 60),
+                title: bookTitle, text: text, notes: "",
+                passages: target.context && target.context !== text ? [{ label: bookTitle, text: target.context }] : [],
+                sources: [], question: ""
+            })
+            return
+        }
         saved = false
         carded = false
         request.run(action, { text: target.text, context: target.context || "", title: bookTitle,
@@ -196,10 +208,12 @@ Rectangle {
                 text: qsTr("Practice test on a chapter…")
                 onClicked: panel.practiceRequested()
             }
-            RowLayout {
+            GridLayout {
                 visible: !panel.bookMode
                 Layout.fillWidth: true
-                spacing: 6
+                columns: 2
+                columnSpacing: 6
+                rowSpacing: 6
                 Repeater {
                     model: panel.actions
                     delegate: Button {
@@ -270,45 +284,21 @@ Rectangle {
                     Layout.preferredWidth: 28
                     Layout.preferredHeight: 28
                 }
-                Label {
+                // The answer, with formulas, diagrams and charts drawn, and
+                // where each cited passage is (click to go there).
+                RichText {
                     Layout.fillWidth: true
+                    visible: request.answer !== ""
                     text: panel.linked(request.answer)
-                    textFormat: Text.MarkdownText
-                    linkColor: theme.accent
-                    wrapMode: Text.WordWrap
-                    font.pixelSize: 13
-                    lineHeight: 1.15
+                    partial: request.running
+                    sources: panel.bookMode && !request.running && request.answer !== "" ? panel.sources : []
+                    flickable: answerScroll.contentItem
+                    background: panel.color
                     onLinkActivated: link => {
                         if (link.startsWith("source:"))
                             panel.openSource(parseInt(link.slice(7)))
                         else
                             Qt.openUrlExternally(link)
-                    }
-                    HoverHandler { cursorShape: parent.hoveredLink !== "" ? Qt.PointingHandCursor : Qt.ArrowCursor }
-                }
-                // Where each cited passage is; click to go there.
-                Label {
-                    visible: panel.bookMode && panel.sources.length > 0 && !request.running && request.answer !== ""
-                    Layout.topMargin: 6
-                    text: qsTr("SOURCES")
-                    font.pixelSize: 11
-                    font.weight: Font.DemiBold
-                    opacity: 0.55
-                }
-                Repeater {
-                    model: panel.bookMode && !request.running && request.answer !== "" ? panel.sources : []
-                    delegate: ItemDelegate {
-                        required property var modelData
-                        Layout.fillWidth: true
-                        padding: 6
-                        contentItem: Label {
-                            text: "[%1]  %2 — %3".arg(modelData.n).arg(modelData.label || "")
-                                                 .arg(modelData.text.replace(/\s+/g, " ").slice(0, 90) + "…")
-                            elide: Text.ElideRight
-                            font.pixelSize: 12
-                            color: "#c8c8ce"
-                        }
-                        onClicked: panel.sourceChosen(modelData.target)
                     }
                 }
                 Label {

@@ -30,6 +30,7 @@ function radius(n) {
     switch (n.kind) {
     case 'book': return 13
     case 'chapter': return 6
+    case 'slide': return 7
     case 'concept': return 4 + Math.min(10, 2.2 * Math.sqrt(n.uses || 1))
     default: return 4
     }
@@ -39,6 +40,7 @@ function color(n) {
     switch (n.kind) {
     case 'book': return accent
     case 'chapter': return '#8a8892'
+    case 'slide': return '#f5b347'
     case 'concept': return n.books > 1 ? '#4fd1c5' : '#7aa2f7'
     case 'note': return '#e8e6ea'
     default: return COLORS[n.color] || COLORS.yellow
@@ -243,7 +245,7 @@ function draw() {
     for (const n of nodes) {
         const focus = n === hover || n === selected
         const show = focus || (lit(n) && dimming && (hover || selected)) ||
-                     (n.kind === 'book') || (n.kind === 'concept' && (view.k > 0.7 || n.uses > 3)) ||
+                     (n.kind === 'book') || (n.kind === 'slide') || (n.kind === 'concept' && (view.k > 0.7 || n.uses > 3)) ||
                      (n.kind === 'chapter' && view.k > 1.3) || (matches && matches.has(n) && view.k > 0.5)
         if (!show || (n.kind === 'highlight' || n.kind === 'note') && !focus && !(matches && matches.has(n))) continue
         const size = (n.kind === 'book' ? 14 : n.kind === 'concept' ? 12 : 11) / Math.max(0.6, view.k)
@@ -345,7 +347,10 @@ canvas.addEventListener('wheel', e => {
 window.addEventListener('resize', () => draw())
 
 function openItem(n) {
-    host.open(JSON.stringify({ bookId: n.bookId, location: n.location, format: n.format }))
+    if (n.kind === 'slide')
+        host.open(JSON.stringify({ workspaceId: n.workspaceId, deckId: n.deckId, slide: n.slide }))
+    else
+        host.open(JSON.stringify({ bookId: n.bookId, location: n.location, format: n.format }))
 }
 
 function el(tag, attrs = {}, ...children) {
@@ -380,6 +385,13 @@ function select(n) {
         if (concepts.length)
             parts.push(el('div', {}, ...concepts.map(c => el('span', { class: 'tag', text: c.label, onclick: () => select(c) }))))
         parts.push(el('button', { text: tr('Open in the book'), onclick: () => openItem(n) }))
+    } else if (n.kind === 'slide') {
+        // A lecture slide: where it is, and the sections it links to.
+        parts.push(el('h3', { text: n.label }))
+        parts.push(el('div', { class: 'sub', text: tr('Slide in %1', n.workspace) }))
+        const places = linked.filter(m => m.kind === 'chapter' || m.kind === 'book')
+        parts.push(el('div', {}, ...places.map(c => el('span', { class: 'tag', text: c.label, onclick: () => select(c) }))))
+        parts.push(el('button', { text: tr('Open the slide'), onclick: () => openItem(n) }))
     } else {
         parts.push(el('h3', { text: n.label }))
         const sub = n.kind === 'concept'

@@ -29,8 +29,9 @@ Rectangle {
         visible: status === Image.Ready
     }
 
+    // Too small to read (a list's thumbnail), the colour alone stands in.
     Column {
-        visible: image.status !== Image.Ready
+        visible: image.status !== Image.Ready && cover.width >= 50
         anchors.fill: parent
         anchors.margins: Math.max(6, cover.width / 13)
         spacing: Math.max(3, cover.width / 20)

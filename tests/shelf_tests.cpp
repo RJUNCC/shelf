@@ -18,6 +18,12 @@
 #include "airequest.h"
 #include "annotations.h"
 #include "cards.h"
+#include "voice.h"
+#include "studiovoice.h"
+#include "explainer.h"
+#include "slides.h"
+#include "workspaces.h"
+#include "ollama.h"
 #include "booksearch.h"
 #include "practicetest.h"
 #include "knowledgegraph.h"
@@ -1176,6 +1182,270 @@ private slots:
         QCOMPARE(nodes.size(), 8);
         QCOMPARE(KnowledgeGraph::wikiLinks("a [[B c]] and [[d|e]] [[b c]]"), (QStringList{"B c", "d"}));
         QCOMPARE(graph.pending({QVariantMap{{"id", "aa11"}}}), 1);
+    }
+
+    // The voice: each computer gets its own Piper build plus the voice, all
+    // with checksums; without a voice, a sentence comes back with no sound
+    // at once, so the lesson goes on at reading pace.
+    void voiceDownloadsAreChecked() {
+        for (const QString platform : {"linux-x86_64", "linux-aarch64", "windows-x86_64"}) {
+            const QList<Voice::Download> all = Voice::downloadsFor("en_US-lessac-medium", platform);
+            QCOMPARE(all.size(), 3);
+            for (const Voice::Download &d : all) {
+                QVERIFY(d.url.startsWith("https://"));
+                QCOMPARE(d.sha256.size(), 64);
+            }
+        }
+        QVERIFY(Voice::downloadsFor("en_US-lessac-medium", "windows-x86_64")[0].file.endsWith(".zip"));
+        // Kokoro: sherpa-onnx for the computer, and the voices, all checked.
+        for (const QString platform : {"linux-x86_64", "linux-aarch64", "windows-x86_64"}) {
+            const QList<Voice::Download> all = Voice::downloadsFor("kokoro-af_heart", platform);
+            QCOMPARE(all.size(), 2);
+            QCOMPARE(all[1].file, QString("kokoro/kokoro.tar.bz2"));
+            for (const Voice::Download &d : all)
+                QCOMPARE(d.sha256.size(), 64);
+        }
+        QVERIFY(Voice::downloadsFor("nobody/1", "linux-x86_64").isEmpty());
+        for (const QString model : {"kokoro-hd", "supertonic", "kitten", "libritts", "lessac-hd", "ryan-hd", "ljspeech-hd"})
+            QCOMPARE(Voice::downloadsFor(model + "/0", "windows-x86_64").size(), 2);
+        // Voice ids from the first Kokoro version carry over.
+        QCOMPARE(Voice::migrate("kokoro-bf_emma"), QString("kokoro/21"));
+        QCOMPARE(Voice::migrate("en_US-amy-medium"), QString("en_US-amy-medium"));
+        // Each kind of model gets its own flags, and the speaker.
+        Voice flags(nullptr, QTemporaryDir().path());
+        const QStringList kitten = flags.arguments("kitten/1", "Hello.", "/tmp/x.wav");
+        QVERIFY(kitten.join(' ').contains("--kitten-model="));
+        QVERIFY(kitten.contains("--sid=1"));
+        QCOMPARE(kitten.last(), QString("Hello."));
+        QVERIFY(flags.arguments("supertonic/4", "Hi.", "o.wav").contains("--lang=en"));
+        QVERIFY(flags.arguments("kokoro-hd/21", "Hi.", "o.wav").join(' ').contains("lexicon-gb-en.txt"));
+        QVERIFY(flags.arguments("libritts/900", "Hi.", "o.wav").contains("--sid=900"));
+        QVERIFY(Voice::downloadsFor("nobody", "linux-x86_64").isEmpty());
+        QVERIFY(Voice::downloadsFor("en_US-amy-medium", "macos").isEmpty());
+        QTemporaryDir dir;
+        Voice voice(nullptr, dir.path());
+        QVERIFY(!voice.ready());
+        QSignalSpy spoken(&voice, &Voice::spoken);
+        voice.say("lesson", 1, 2, "Hello there.", true);
+        QCOMPARE(spoken.size(), 1);
+        QCOMPARE(spoken[0][3].toString(), QString());
+        voice.say("lesson", 1, 3, "Ahead of time.", false);   // nothing waits for it
+        QCOMPARE(spoken.size(), 1);
+    }
+
+    // Studio voices are only offered, never assumed: nothing is installed
+    // until asked, and speaking without one says so at once.
+    void studioVoicesNeedInstalling() {
+        QTemporaryDir dir;
+        StudioVoice studio(dir.path());
+        QVERIFY(!studio.installed("chatterbox"));
+        QVERIFY(!studio.installed("xtts"));
+        QVERIFY(StudioVoice::isStudio("xtts"));
+        QVERIFY(!StudioVoice::isStudio("kokoro"));
+        QCOMPARE(studio.xttsSpeakers().size(), 58);
+        const QByteArray helper = StudioVoice::helperScript();
+        QVERIFY(helper.contains("ChatterboxTTS") && helper.contains("xtts_v2"));
+        QString error;
+        studio.speak("xtts", "Ana Florence", "Hello.", dir.filePath("x.wav"), [&](const QString &e) { error = e; });
+        QVERIFY(!error.isEmpty());
+        Voice voice(nullptr, dir.path());
+        QVERIFY(!voice.installed("chatterbox/default"));
+    }
+
+    // Lessons: good scenes are kept, a formula that can't be typeset or a
+    // graph that can't be worked out becomes points, labels get quoted, and
+    // narration is cut into sentences.
+    void lessonsAreChecked() {
+        QJsonArray scenes{
+            QJsonObject{{"kind", "formula"}, {"heading", "Falling"}, {"say", "Distance grows with the square of time."},
+                        {"latex", "d = \\frac{1}{2} g t^2"},
+                        {"terms", QJsonArray{QJsonObject{{"symbol", "g"}, {"meaning", "gravity"}}}}},
+            QJsonObject{{"kind", "formula"}, {"heading", "Broken"}, {"say", "This one is broken. It has a bad brace."},
+                        {"latex", "\\frac{1}{"}, {"terms", QJsonArray{}}},
+            QJsonObject{{"kind", "graph"}, {"heading", "Curve"}, {"say", "Watch it curve."}, {"formula", "0.5*9.81*t^2"},
+                        {"variable", "t"}, {"from", 0}, {"to", 3}, {"xLabel", "t"}, {"yLabel", "d"}},
+            QJsonObject{{"kind", "graph"}, {"heading", "Unknown"}, {"say", "Uses a name it never defines."},
+                        {"formula", "k*t"}, {"variable", "t"}, {"from", 0}, {"to", 3}, {"xLabel", ""}, {"yLabel", ""}},
+            QJsonObject{{"kind", "diagram"}, {"heading", "Flow"}, {"say", "First this, then that."},
+                        {"mermaid", "flowchart LR\n  A[Glucose (C6)] --> B[Pyruvate]"}},
+            QJsonObject{{"kind", "steps"}, {"heading", ""}, {"say", ""}, {"steps", QJsonArray{"x"}}},
+        };
+        const QVariantMap lesson = Explainer::parseLesson(QJsonDocument(QJsonObject{{"title", "Gravity"}, {"scenes", scenes}}).toJson());
+        const QVariantList out = lesson.value("scenes").toList();
+        QCOMPARE(out.size(), 5);   // the scene with nothing to say is dropped
+        QCOMPARE(out[0].toMap().value("kind").toString(), QString("formula"));
+        QCOMPARE(out[0].toMap().value("terms").toList().size(), 1);
+        QCOMPARE(out[1].toMap().value("kind").toString(), QString("points"));
+        QCOMPARE(out[1].toMap().value("points").toStringList(), (QStringList{"This one is broken.", "It has a bad brace."}));
+        QCOMPARE(out[2].toMap().value("kind").toString(), QString("graph"));
+        QCOMPARE(out[3].toMap().value("kind").toString(), QString("points"));
+        QCOMPARE(out[4].toMap().value("mermaid").toString(), QString("flowchart LR\n  A[\"Glucose (C6)\"] --> B[\"Pyruvate\"]"));
+        QCOMPARE(Explainer::sentences("Mass is 2.5 kg, e.g. a bag. Then it falls! Why? Gravity."),
+                 (QStringList{"Mass is 2.5 kg, e.g. a bag.", "Then it falls!", "Why?", "Gravity."}));
+        QVERIFY(Explainer::parseLesson("{}").isEmpty());
+        // An exam review's topics, each with words to find its slides by.
+        const QVariantList topics = Explainer::parseTopics(
+            R"({"topics": [{"topic": "CUDA memory model", "details": "Explain global vs shared.", "keywords": ["Shared Memory", "global memory"]},
+                           {"topic": " ", "details": "", "keywords": []}]})");
+        QCOMPARE(topics.size(), 1);
+        QCOMPARE(topics[0].toMap().value("keywords").toStringList(), (QStringList{"shared memory", "global memory"}));
+    }
+
+    // PowerPoint: slides in presentation order, titles, indented bullets,
+    // pictures written out, and speaker notes.
+    void pptxSlidesAreRead() {
+        QTemporaryDir dir;
+        const QByteArray ns = "xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" "
+                              "xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" "
+                              "xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"";
+        const auto shape = [](const QByteArray &ph, const QList<QPair<int, QByteArray>> &paras) {
+            QByteArray out = "<p:sp><p:nvSpPr><p:nvPr>" + (ph.isEmpty() ? QByteArray() : "<p:ph type=\"" + ph + "\"/>")
+                             + "</p:nvPr></p:nvSpPr><p:txBody>";
+            for (const auto &[level, text] : paras)
+                out += "<a:p><a:pPr lvl=\"" + QByteArray::number(level) + "\"/><a:r><a:t>" + text + "</a:t></a:r></a:p>";
+            return out + "</p:txBody></p:sp>";
+        };
+        const QByteArray rel = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/";
+        const QByteArray presentation = "<p:presentation " + ns + "><p:sldIdLst><p:sldId id=\"257\" r:id=\"rId3\"/>"
+                                        "<p:sldId id=\"256\" r:id=\"rId2\"/></p:sldIdLst></p:presentation>";
+        const QByteArray presentationRels =
+            "<Relationships><Relationship Id=\"rId2\" Type=\"" + rel + "slide\" Target=\"slides/slide1.xml\"/>"
+            "<Relationship Id=\"rId3\" Type=\"" + rel + "slide\" Target=\"slides/slide2.xml\"/></Relationships>";
+        const QByteArray slide1 = "<p:sld " + ns + "><p:cSld><p:spTree>" + shape("title", {{0, "Glycolysis"}})
+                                  + shape("body", {{0, "Splits glucose"}, {1, "Makes 2 ATP"}}) + shape("sldNum", {{0, "1"}})
+                                  + "<p:pic><p:blipFill><a:blip r:embed=\"rId5\"/></p:blipFill></p:pic>"
+                                  + "</p:spTree></p:cSld></p:sld>";
+        const QByteArray slide1Rels =
+            "<Relationships><Relationship Id=\"rId5\" Type=\"" + rel + "image\" Target=\"../media/image1.png\"/>"
+            "<Relationship Id=\"rId6\" Type=\"" + rel + "notesSlide\" Target=\"../notesSlides/notesSlide1.xml\"/></Relationships>";
+        const QByteArray notes1 = "<p:notes " + ns + "><p:cSld><p:spTree>" + shape("body", {{0, "Mention the investment phase."}})
+                                  + shape("sldNum", {{0, "1"}}) + "</p:spTree></p:cSld></p:notes>";
+        const QByteArray slide2 = "<p:sld " + ns + "><p:cSld><p:spTree>" + shape("", {{0, "Overview"}, {0, "Three stages"}})
+                                  + "</p:spTree></p:cSld></p:sld>";
+        const QString path = dir.filePath("deck.pptx");
+        write(path, makeZip({{"ppt/presentation.xml", presentation},
+                             {"ppt/_rels/presentation.xml.rels", presentationRels},
+                             {"ppt/slides/slide1.xml", slide1},
+                             {"ppt/slides/_rels/slide1.xml.rels", slide1Rels},
+                             {"ppt/slides/slide2.xml", slide2},
+                             {"ppt/notesSlides/notesSlide1.xml", notes1},
+                             {"ppt/media/image1.png", pngBytes(Qt::blue)}}, true));
+        const QList<Slides::Slide> slides = Slides::readPptx(path, dir.filePath("media"));
+        QCOMPARE(slides.size(), 2);
+        // Presentation order, not file order: slide2.xml comes first.
+        QCOMPARE(slides[0].title, QString("Overview"));
+        QCOMPARE(slides[0].paragraphs.size(), 1);
+        QCOMPARE(slides[1].title, QString("Glycolysis"));
+        QCOMPARE(slides[1].paragraphs.size(), 2);
+        QCOMPARE(slides[1].paragraphs[1].level, 1);
+        QCOMPARE(slides[1].images.size(), 1);
+        QVERIFY(QFileInfo::exists(slides[1].images[0]));
+        QCOMPARE(slides[1].notes, QString("Mention the investment phase."));
+        QCOMPARE(slides[1].text(), QString("Glycolysis\nSplits glucose\n  Makes 2 ATP"));
+        QCOMPARE(Slides::pptxNotes(path), (QStringList{"", "Mention the investment phase."}));
+    }
+
+    // An EPUB's sections come from its table of contents, nested, with
+    // links made whole; a workspace keeps its decks and links.
+    void workspacesKeepSlidesAndLinks() {
+        QTemporaryDir dir;
+        const QByteArray container = "<?xml version=\"1.0\"?><container xmlns=\"urn:oasis:names:tc:opendocument:xmlns:container\">"
+                                     "<rootfiles><rootfile full-path=\"OEBPS/content.opf\"/></rootfiles></container>";
+        const QByteArray opf = "<package xmlns=\"http://www.idpf.org/2007/opf\" version=\"3.0\"><manifest>"
+                               "<item id=\"nav\" href=\"nav.xhtml\" properties=\"nav\" media-type=\"application/xhtml+xml\"/>"
+                               "<item id=\"c1\" href=\"text/c1.xhtml\" media-type=\"application/xhtml+xml\"/>"
+                               "</manifest><spine><itemref idref=\"c1\"/></spine></package>";
+        const QByteArray nav = "<html xmlns=\"http://www.w3.org/1999/xhtml\" xmlns:epub=\"http://www.idpf.org/2007/ops\"><body>"
+                               "<nav epub:type=\"toc\"><ol><li><a href=\"text/c1.xhtml\">Chapter 1 Energy</a><ol>"
+                               "<li><a href=\"text/c1.xhtml#s1\">Glycolysis</a></li></ol></li></ol></nav>"
+                               "<nav epub:type=\"landmarks\"><ol><li><a href=\"text/c1.xhtml\">Start</a></li></ol></nav></body></html>";
+        const QString epub = dir.filePath("book.epub");
+        write(epub, makeZip({{"mimetype", "application/epub+zip"}, {"META-INF/container.xml", container},
+                             {"OEBPS/content.opf", opf}, {"OEBPS/nav.xhtml", nav},
+                             {"OEBPS/text/c1.xhtml", "<html><body><p>Glucose</p></body></html>"}}, true));
+        const QVariantList sections = Workspaces::epubSections(epub);
+        QCOMPARE(sections.size(), 2);
+        QCOMPARE(sections[0].toMap().value("label").toString(), QString("Chapter 1 Energy"));
+        QCOMPARE(sections[1].toMap().value("depth").toInt(), 1);
+        QCOMPARE(sections[1].toMap().value("target").toString(), QString("OEBPS/text/c1.xhtml#s1"));
+
+        Workspaces spaces(nullptr, nullptr, dir.filePath("spaces"));
+        QSignalSpy changed(&spaces, &Workspaces::changed);
+        const QString id = spaces.create("Biology 101");
+        QVERIFY(!id.isEmpty());
+        const QString pdf = writeBookPdf(dir.filePath("lecture.pdf"), {"Cell respiration\nGlycolysis first", "Krebs cycle"});
+        spaces.addDecks(id, {pdf});
+        QTRY_VERIFY(spaces.importing().isEmpty() && spaces.workspace(id).value("decks").toList().size() == 1);
+        QVariantMap deck = spaces.workspace(id).value("decks").toList().first().toMap();
+        QCOMPARE(deck.value("kind").toString(), QString("pdf"));
+        QCOMPARE(deck.value("slides").toList().size(), 2);
+        QVERIFY(deck.value("slides").toList()[0].toMap().value("title").toString().contains("Cell respiration"));
+        // A copy: the original can go away.
+        QFile::remove(pdf);
+        QVERIFY(QFileInfo::exists(QUrl(deck.value("pdf").toString()).toLocalFile()));
+        const QString deckId = deck.value("id").toString();
+        spaces.addLink(id, deckId, 0, {{"bookId", "b1"}, {"target", 4}, {"label", "5.3 Glycolysis"}});
+        spaces.addLink(id, deckId, 0, {{"bookId", "b1"}, {"target", 4}, {"label", "5.3 Glycolysis"}});   // once only
+        deck = spaces.workspace(id).value("decks").toList().first().toMap();
+        QCOMPARE(deck.value("slides").toList()[0].toMap().value("links").toList().size(), 1);
+        QCOMPARE(spaces.workspace(id).value("books").toStringList(), QStringList{"b1"});
+        spaces.removeLink(id, deckId, 0, 0);
+        QCOMPARE(spaces.workspace(id).value("decks").toList().first().toMap().value("slides").toList()[0].toMap()
+                     .value("links").toList().size(), 0);
+        // Study reviews come from Word, LibreOffice, saved web pages and text,
+        // as Markdown: headings, bullets and bold kept.
+        const QByteArray docx = "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body>"
+                                "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>Exam 2</w:t></w:r></w:p>"
+                                "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/></w:numPr></w:pPr><w:r><w:rPr><w:b/></w:rPr>"
+                                "<w:t>Amdahl's law</w:t></w:r><w:r><w:t xml:space=\"preserve\"> and speedup</w:t></w:r></w:p>"
+                                "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"1\"/></w:numPr></w:pPr><w:r><w:t>Efficiency</w:t></w:r></w:p>"
+                                "</w:body></w:document>";
+        write(dir.filePath("review.docx"), makeZip({{"word/document.xml", docx}}, true));
+        QCOMPARE(Workspaces::documentText(dir.filePath("review.docx")),
+                 QString("# Exam 2\n- **Amdahl's law** and speedup\n  - Efficiency"));
+        write(dir.filePath("review.html"), "<html><head><title>x</title></head><body><h2>Exam&nbsp;2</h2><p>Know <b>these</b>:</p>"
+                                           "<ul><li>OpenMP</li><li>CUDA &amp; warps</li></ul></body></html>");
+        QCOMPARE(Workspaces::documentText(dir.filePath("review.html")), QString("## Exam 2\nKnow **these**:\n- OpenMP\n- CUDA & warps"));
+        const QByteArray odt = "<office:document-content xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" "
+                               "xmlns:text=\"urn:oasis:names:tc:opendocument:xmlns:text:1.0\"><office:body><office:text>"
+                               "<text:h text:outline-level=\"1\">Review</text:h><text:list><text:list-item><text:p>Memory "
+                               "<text:span>coalescing</text:span></text:p></text:list-item></text:list>"
+                               "</office:text></office:body></office:document-content>";
+        write(dir.filePath("review.odt"), makeZip({{"content.xml", odt}}, true));
+        QCOMPARE(Workspaces::documentText(dir.filePath("review.odt")), QString("# Review\n- Memory coalescing"));
+
+        // The user's notes and the explanations watched are kept.
+        spaces.setSlideNote(id, deckId, 1, "Ask about warps");
+        QCOMPARE(spaces.workspace(id).value("decks").toList().first().toMap().value("slides").toList()[1].toMap()
+                     .value("myNote").toString(), QString("Ask about warps"));
+        spaces.addHistory(id, deckId, 0, "");
+        spaces.addHistory(id, deckId, 1, "Why?");
+        spaces.addHistory(id, deckId, 0, "");   // once per slide and question, newest kept
+        const QVariantList history = spaces.workspace(id).value("history").toList();
+        QCOMPARE(history.size(), 2);
+        QCOMPARE(history.last().toMap().value("slide").toInt(), 0);
+        // Folders: a deck goes in, the folder is renamed, then removed;
+        // the deck stays.
+        spaces.setDeckFolder(id, deckId, "GPU unit");
+        QCOMPARE(spaces.workspace(id).value("decks").toList().first().toMap().value("folder").toString(), QString("GPU unit"));
+        spaces.renameFolder(id, "GPU unit", "CUDA");
+        QCOMPARE(spaces.workspace(id).value("decks").toList().first().toMap().value("folder").toString(), QString("CUDA"));
+        spaces.removeFolder(id, "CUDA");
+        QCOMPARE(spaces.workspace(id).value("decks").toList().size(), 1);
+        QCOMPARE(spaces.workspace(id).value("decks").toList().first().toMap().value("folder").toString(), QString());
+        QCOMPARE(spaces.list().size(), 1);
+        spaces.remove(id);
+        QCOMPARE(spaces.list().size(), 0);
+    }
+
+    // LaTeX that lost its backslashes in a JSON answer gets them back, and
+    // ordinary tabs and newlines are left alone.
+    void latexIsRepaired() {
+        QCOMPARE(Ollama::repairLatex(QString("$") + QChar(0x0c) + "rac{1}{2}$"), QString("$\\frac{1}{2}$"));
+        QCOMPARE(Ollama::repairLatex("$a \times b$ and $\theta$"), QString("$a \\times b$ and $\\theta$"));
+        QCOMPARE(Ollama::repairLatex("$\nu = \rho$"), QString("$\\nu = \\rho$"));
+        QCOMPARE(Ollama::repairLatex("Line one\nnot maths\tthere"), QString("Line one\nnot maths\tthere"));
+        QCOMPARE(Ollama::repairLatex("$x$\nnext"), QString("$x$\nnext"));
     }
 
     // Updates: versions compare as numbers, the right package is picked for

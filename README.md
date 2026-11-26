@@ -89,6 +89,64 @@ An organized library and reader for EPUB and PDF books, built for Omarchy.
   view's sandbox, in a worker that is stopped after a few seconds and can't
   reach the network or your files. Python is Pyodide, downloaded and checked
   by `bin/build` and installed in `/usr/share/shelf/pyodide`.
+- **Answers you can see.** AI answers, practice-test explanations and
+  flashcards typeset formulas (KaTeX, with chemistry like
+  $\ce{CH3COOH}$), draw diagrams for processes and cycles (Mermaid), plot
+  charts for numbers that depend on each other, and put definitions,
+  examples and common mistakes in coloured boxes, instead of numbers in plain
+  text.
+- **Workspaces** (library panel): put a course's slides, PDF or PowerPoint,
+  beside your books, and sort decks into folders. Each deck has an outline
+  of slide titles (slides that build up step by step show once), thumbnails,
+  search across every slide and your notes, a slide number box, and the
+  mouse wheel turns slides. Shelf suggests the sections each slide comes
+  from, by its words, with no AI needed; link them with one click and open
+  them in their book. PowerPoint files look exactly as designed when
+  LibreOffice is installed; without it, each slide is shown as its text and
+  pictures. Beside the slide: speaker notes, *My notes* (saved as you type),
+  and the explanation. Both side panels fold away (`[` and `]`). Explanations
+  you've watched are listed (history button), in course order or newest
+  first. Slides with links appear in the knowledge graph. Shelf keeps its own
+  copy of the slides, so your files are never touched.
+- **Practice tests on slides**: *Practice test* (`T`) asks about this slide,
+  these slides, everything in their folder, or the whole workspace; a big
+  folder is sampled across all its slides, differently each time.
+- **Study plan** (optional): paste the review your teacher gives out for the
+  next exam, add the date if you know it, and the local AI reads its topics;
+  Shelf finds the slides for each, spreads them over the days left with a
+  practice test per day and one on everything the day before, and keeps
+  track of what's done.
+- **Animated lessons**: *Explain this slide* (`E`), *Explain visually* on a
+  passage, or on a practice question, and the local model writes a short
+  lesson from the slide and its linked sections: scenes that build while
+  they're narrated (points, numbered steps, a diagram drawn node by node, a
+  formula and what each symbol means, a graph that draws itself, bars, a
+  comparison, a quotation from the book), with captions. Ask a follow-up
+  under it. Every formula and graph is checked before it's shown; a scene
+  that can't be drawn becomes plain points. Lessons are kept, so each is
+  written once. Nothing moves once a scene is built.
+- **Voice-overs**: under *Local AI*, pick a voice model and one of its
+  voices, download it once, and press *Try* to hear it. All run on this
+  computer through sherpa-onnx, checked against SHA-256 checksums built into
+  Shelf: Kokoro and Kokoro HD (28 English voices each; HD sounds the most
+  like a person), Supertonic 3 (10), Kitten (8), LibriTTS (904 different
+  readers), and Piper's high-quality Lessac, Ryan and Linda; the lighter
+  Piper voices of earlier versions remain for older computers. Each scene is
+  spoken as one recording, so it flows, with captions and drawing following
+  along, and a volume slider. Speech is made a scene ahead at idle priority
+  and kept. *Play a sample lesson* shows what lessons are like without the AI.
+- **Studio voices** (optional, NVIDIA graphics card): Chatterbox, which can
+  also speak like a short recording you give it, and XTTS-v2 with 58 studio
+  voices (personal, non-commercial use under Coqui's licence). After a
+  warning, Shelf sets up a private Python with PyTorch inside its own folder
+  using uv (about 6 GB each; nothing is installed for the rest of the
+  computer, and *Remove voices* deletes it all). A helper keeps the model on
+  the graphics card while lessons play and lets go after a few quiet minutes.
+- **Boards**: lessons are written by hand as they're explained, on a
+  whiteboard, a chalkboard or a notebook page (or plainly, *Clean*): words
+  appear stroke by stroke with the marker following, diagrams are drawn by
+  hand, headings get underlined, and the narration talks about each part as
+  it's drawn.
 - **Search all books** (Ctrl+Shift+F, or the library's sidebar) finds words
   inside every book, with the words around each match; click one to open the
   book there. Scanned books are searchable once their outline is built.
@@ -108,6 +166,11 @@ An organized library and reader for EPUB and PDF books, built for Omarchy.
 - **Review flashcards** from the library's sidebar: spaced repetition (SM-2),
   so cards you know come back after longer and longer gaps and ones you
   missed come back the same session. Space shows the answer; 1–4 grade it.
+- **The library in a panel beside every tab**: your books (searched, and
+  filtered by shelf or collection), your workspaces, and the study tools sit
+  in a panel beside books, PDFs and workspaces; Ctrl+B or the button at the
+  start of the tab strip folds it away. With nothing open, the home page
+  shows *Continue reading* and every cover.
 - **Tabs like a browser's.** Drag a book's tab to move it; right-click it to
   close it, the others, or those to its right.
 - **Your place is kept** for every book and restored when you reopen it.
@@ -138,13 +201,18 @@ or whole folders on the window, or by opening them with Shelf.
 | `Ctrl+G` | | Go to page (PDF) |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab | Next / previous tab |
 | `Ctrl+W` | | Close tab |
-| `Ctrl+1` … `Ctrl+9` | Library, then tabs in order | Same |
+| `Ctrl+1` … `Ctrl+9` | Tabs in order | Same |
 | `Ctrl +` / `Ctrl −` / `Ctrl+0` | | Text size (EPUB) or zoom (PDF) |
 | `Ctrl+F` | | Find (PDF) |
-| `Esc` | Clear search | Back to the library tab |
+| `Esc` | Clear search | Show the library panel |
 | `F11` | Full screen | Full screen |
+| `Ctrl+B` | Show or hide the library sidebar | Same |
 | `?` | Shortcuts | Shortcuts |
 | `Q` | Quit | |
+
+In a workspace: arrows, `Space` or the mouse wheel move between slides, drag over a slide's text to select it (double click a word, triple click a sentence) and copy it, add it to your notes or have it explained, `Ctrl+F` finds text in the deck, `/` finds a slide by its words, `L` links a section,
+`E` explains the slide, `2` opens the study plan and `1` goes back to the slides; in a lesson, `Space` plays or pauses, the arrows move
+between scenes, and `Esc` goes back to the slide.
 
 ## Build
 
@@ -213,6 +281,10 @@ chat model works. Set `SHELF_OLLAMA_URL` to use Ollama on another address.
   file per book. They stay when a book is removed and return if it is added
   again.
 - Concepts found for the knowledge graph: `~/.local/share/shelf/concepts.json`.
+- Workspaces, with their copies of the slides: `~/.local/share/shelf/workspaces/`.
+- Lessons: `~/.cache/shelf/lessons/`; their speech: `~/.cache/shelf/speech/`.
+- The voices: `~/.local/share/shelf/voice/` (studio voices, with their
+  Python and models, in `voice/studio/`).
 - Flashcards: `~/.local/share/shelf/cards.json`.
 - Downloaded updates: `~/.cache/shelf/updates/`.
 - Covers: `~/.cache/shelf/covers/`, safe to delete; they come back when a book
@@ -227,3 +299,10 @@ chat model works. Set `SHELF_OLLAMA_URL` to use Ollama on another address.
 ## License
 
 MIT. See `LICENSE`, including the credits for foliate-js and Omacut.
+KaTeX, Mermaid and marked (all MIT) are in `src/web/vendor/` with their
+licences, and the Caveat handwriting font (SIL Open Font Licence) is in
+`src/web/vendor/caveat/`. The voices are downloaded when asked for, not
+shipped: sherpa-onnx (Apache 2.0), Kokoro (Apache 2.0), Kitten (Apache 2.0),
+Supertonic 3 (OpenRAIL-M), Piper and its voices (MIT), uv (MIT/Apache 2.0),
+Chatterbox (MIT), and Coqui TTS (MPL 2.0) with XTTS-v2 (Coqui Public Model
+Licence, non-commercial).

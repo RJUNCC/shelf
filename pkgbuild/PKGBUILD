@@ -3,7 +3,7 @@ pkgver=0.1.0
 pkgrel=1
 pkgdesc='An organized library and reader for EPUB and PDF books'
 arch=('x86_64' 'aarch64')
-license=('MIT' 'MPL-2.0')
+license=('MIT' 'MPL-2.0' 'OFL-1.1')
 depends=('qt6-base' 'qt6-declarative' 'qt6-wayland' 'qt6-webengine' 'qt6-webchannel' 'qt6-svg' 'zlib' 'xdg-desktop-portal')
 optdepends=('ollama: AI outlines for PDFs without one (or ollama-cuda / ollama-rocm)'
             'tesseract: read scanned pages that have no text when building outlines'

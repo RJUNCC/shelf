@@ -76,13 +76,33 @@ void PortalFilePicker::pickBooks(const QString &title) {
     bus.connect({}, m_requestPath, "org.freedesktop.portal.Request", "Response", this,
                 SLOT(onResponse(uint, QVariantMap)));
 
-    const QList<Filter> filters{
-        {tr("Books"), {{1, "application/epub+zip"}, {1, "application/pdf"}, {0, "*.epub"}, {0, "*.pdf"}}},
-        {tr("EPUB"), {{1, "application/epub+zip"}, {0, "*.epub"}}},
-        {tr("PDF"), {{1, "application/pdf"}, {0, "*.pdf"}}},
-    };
+    const char *pptx = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+    const QList<Filter> filters = kind == "documents"
+        ? QList<Filter>{
+              {tr("Documents"), {{1, "application/pdf"},
+                                 {1, "application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
+                                 {1, "application/vnd.oasis.opendocument.text"}, {1, "text/html"}, {1, "text/plain"},
+                                 {1, "text/markdown"}, {0, "*.pdf"}, {0, "*.docx"}, {0, "*.odt"}, {0, "*.html"},
+                                 {0, "*.htm"}, {0, "*.txt"}, {0, "*.md"}}},
+          }
+        : kind == "audio"
+        ? QList<Filter>{
+              {tr("Recordings"), {{1, "audio/wav"}, {1, "audio/x-wav"}, {1, "audio/mpeg"}, {1, "audio/flac"},
+                                  {0, "*.wav"}, {0, "*.mp3"}, {0, "*.flac"}}},
+          }
+        : kind == "slides"
+        ? QList<Filter>{
+              {tr("Slides"), {{1, "application/pdf"}, {1, pptx}, {0, "*.pdf"}, {0, "*.pptx"}}},
+              {tr("PDF"), {{1, "application/pdf"}, {0, "*.pdf"}}},
+              {tr("PowerPoint"), {{1, pptx}, {0, "*.pptx"}}},
+          }
+        : QList<Filter>{
+              {tr("Books"), {{1, "application/epub+zip"}, {1, "application/pdf"}, {0, "*.epub"}, {0, "*.pdf"}}},
+              {tr("EPUB"), {{1, "application/epub+zip"}, {0, "*.epub"}}},
+              {tr("PDF"), {{1, "application/pdf"}, {0, "*.pdf"}}},
+          };
     QVariantMap options{{"handle_token", token},
-                        {"multiple", true},
+                        {"multiple", kind == "books" || kind == "slides"},
                         {"modal", true},
                         {"filters", QVariant::fromValue(filters)}};
 

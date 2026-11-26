@@ -1,5 +1,6 @@
 #include "ollama.h"
 
+#include <algorithm>
 #include <QThread>
 
 #include <QJsonArray>
@@ -359,4 +360,45 @@ void Ollama::pull(const QString &name) {
 void Ollama::cancelPull() {
     if (m_pullReply)
         m_pullReply->abort();
+}
+
+QString Ollama::repairLatex(const QString &text) {
+    // Form feeds and backspaces never belong in an answer: always \f and \b.
+    QString out;
+    out.reserve(text.size() + 8);
+    // Tabs, returns and newlines are kept unless they sit inside $…$ and
+    // run straight into a command's name.
+    static const QStringList tCommands{"times", "theta", "tau", "text", "textbf", "textit", "tan", "tanh", "tfrac",
+                                       "top", "to", "triangle", "tilde", "therefore"};
+    static const QStringList rCommands{"rho", "right", "rightarrow", "rangle", "rm", "rbrace", "rfloor", "rceil"};
+    static const QStringList nCommands{"nu", "nabla", "neq", "ne", "neg", "not", "nolimits", "ni", "nmid", "newline"};
+    bool inMath = false;
+    for (int i = 0; i < text.size(); ++i) {
+        const QChar c = text[i];
+        if (c == '$' && (i == 0 || text[i - 1] != '\\'))
+            inMath = !inMath;
+        if (c == QChar(0x0c)) {
+            out += "\\f";
+            continue;
+        }
+        if (c == QChar(0x08)) {
+            out += "\\b";
+            continue;
+        }
+        if (inMath && (c == '\t' || c == '\r' || c == '\n')) {
+            int end = i + 1;
+            while (end < text.size() && text[end].isLetter() && text[end].unicode() < 128)
+                ++end;
+            const QString word = text.mid(i + 1, end - i - 1);
+            const QStringList &known = c == '\t' ? tCommands : c == '\r' ? rCommands : nCommands;
+            const QChar letter = c == '\t' ? 't' : c == '\r' ? 'r' : 'n';
+            if (std::any_of(known.begin(), known.end(), [&](const QString &k) { return letter + word == k; })) {
+                out += '\\';
+                out += letter;
+                continue;
+            }
+        }
+        out += c;
+    }
+    return out;
 }

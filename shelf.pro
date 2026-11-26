@@ -16,6 +16,11 @@ HEADERS += \
     src/booksearch.h \
     src/practicetest.h \
     src/knowledgegraph.h \
+    src/slides.h \
+    src/explainer.h \
+    src/voice.h \
+    src/studiovoice.h \
+    src/workspaces.h \
     src/updater.h \
     src/bookmeta.h \
     src/filepicker.h \
@@ -44,6 +49,11 @@ SOURCES += \
     src/booksearch.cpp \
     src/practicetest.cpp \
     src/knowledgegraph.cpp \
+    src/slides.cpp \
+    src/explainer.cpp \
+    src/voice.cpp \
+    src/studiovoice.cpp \
+    src/workspaces.cpp \
     src/updater.cpp \
     src/bookmeta.cpp \
     src/airequest.cpp \

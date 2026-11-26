@@ -28,9 +28,19 @@ void WindowsFilePicker::pickBooks(const QString &title) {
         if (FAILED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dialog.p)))) {
             failure = tr("Windows could not show the Open dialog.");
         } else {
-            const COMDLG_FILTERSPEC filters[] = {{L"Books (*.epub, *.pdf)", L"*.epub;*.pdf"},
-                                                 {L"EPUB", L"*.epub"}, {L"PDF", L"*.pdf"}};
-            dialog->SetFileTypes(3, filters);
+            const COMDLG_FILTERSPEC books[] = {{L"Books (*.epub, *.pdf)", L"*.epub;*.pdf"},
+                                               {L"EPUB", L"*.epub"}, {L"PDF", L"*.pdf"}};
+            const COMDLG_FILTERSPEC decks[] = {{L"Slides (*.pdf, *.pptx)", L"*.pdf;*.pptx"},
+                                               {L"PDF", L"*.pdf"}, {L"PowerPoint", L"*.pptx"}};
+            const COMDLG_FILTERSPEC audio[] = {{L"Recordings (*.wav, *.mp3, *.flac)", L"*.wav;*.mp3;*.flac"}};
+            const COMDLG_FILTERSPEC documents[] = {
+                {L"Documents (*.pdf, *.docx, *.odt, *.html, *.txt, *.md)", L"*.pdf;*.docx;*.odt;*.html;*.htm;*.txt;*.md"}};
+            if (kind == "documents")
+                dialog->SetFileTypes(1, documents);
+            else if (kind == "audio")
+                dialog->SetFileTypes(1, audio);
+            else
+                dialog->SetFileTypes(3, kind == "slides" ? decks : books);
             DWORD options = 0;
             dialog->GetOptions(&options);
             dialog->SetOptions(options | FOS_ALLOWMULTISELECT | FOS_FILEMUSTEXIST | FOS_FORCEFILESYSTEM);

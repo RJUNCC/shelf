@@ -120,6 +120,7 @@ Popup {
             border.color: "#26262c"
 
             Flickable {
+                id: cardFlick
                 anchors.fill: parent
                 anchors.margins: 22
                 contentHeight: cardColumn.implicitHeight
@@ -138,12 +139,13 @@ Popup {
                         opacity: 0.5
                         elide: Text.ElideRight
                     }
-                    Label {
+                    // Cards can hold formulas and diagrams; they're drawn.
+                    RichText {
                         Layout.fillWidth: true
                         text: review.card ? review.card.front : ""
-                        wrapMode: Text.WordWrap
-                        font.pixelSize: 19
-                        lineHeight: 1.2
+                        fontSize: 19
+                        background: "#131316"
+                        flickable: cardFlick
                     }
                     Rectangle {
                         visible: review.revealed
@@ -151,14 +153,13 @@ Popup {
                         height: 1
                         color: "#2c2c33"
                     }
-                    Label {
+                    RichText {
                         visible: review.revealed
                         Layout.fillWidth: true
                         text: review.card ? review.card.back : ""
-                        wrapMode: Text.WordWrap
-                        font.pixelSize: 16
-                        lineHeight: 1.25
-                        color: "#d8d8de"
+                        fontSize: 16
+                        background: "#131316"
+                        flickable: cardFlick
                     }
                 }
             }

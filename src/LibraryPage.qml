@@ -8,6 +8,9 @@ FocusScope {
 
     signal openRequested(string id)
 
+    // The sidebar's "+" next to Collections.
+    function newCollection() { collectionDialog.forBook = ""; collectionDialog.open() }
+
     // True while the user is typing somewhere, so single-key shortcuts stay quiet.
     readonly property bool typing: searchField.activeFocus || collectionDialog.visible || removeDialog.visible
 
@@ -137,174 +140,6 @@ FocusScope {
         anchors.fill: parent
         spacing: 0
 
-        // Sidebar: built-in shelves, then the user's collections.
-        Rectangle {
-            Layout.fillHeight: true
-            Layout.preferredWidth: 230
-            color: "#131316"
-
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 14
-                spacing: 2
-
-                Label {
-                    text: "Shelf"
-                    font.pixelSize: 22
-                    font.weight: Font.DemiBold
-                    Layout.bottomMargin: 14
-                    Layout.leftMargin: 8
-                    Layout.topMargin: 4
-                }
-
-                Repeater {
-                    model: page.shelves
-                    delegate: SidebarItem {
-                        required property var modelData
-                        Layout.fillWidth: true
-                        icon: modelData.icon
-                        text: modelData.label
-                        count: modelData.key === "all" ? library.totalCount : -1
-                        selected: library.shelf === modelData.key
-                        onClicked: library.shelf = modelData.key
-                    }
-                }
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    Layout.topMargin: 18
-                    Layout.leftMargin: 8
-                    Label {
-                        text: qsTr("Collections")
-                        font.pixelSize: 12
-                        font.weight: Font.DemiBold
-                        font.capitalization: Font.AllUppercase
-                        opacity: 0.55
-                        Layout.fillWidth: true
-                    }
-                    ToolButton {
-                        text: "+"
-                        font.pixelSize: 18
-                        implicitWidth: 32
-                        implicitHeight: 32
-                        ToolTip.visible: hovered
-                        ToolTip.text: qsTr("New collection (Ctrl+N)")
-                        onClicked: { collectionDialog.forBook = ""; collectionDialog.open() }
-                    }
-                }
-
-                ListView {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    clip: true
-                    model: library.collections
-                    boundsBehavior: Flickable.StopAtBounds
-                    delegate: SidebarItem {
-                        required property string modelData
-                        width: ListView.view.width
-                        icon: "◆"
-                        text: modelData
-                        selected: library.shelf === "collection:" + modelData
-                        onClicked: library.shelf = "collection:" + modelData
-                        onRightClicked: {
-                            collectionMenu.name = modelData
-                            collectionMenu.popup()
-                        }
-                    }
-                    Label {
-                        visible: library.collections.length === 0
-                        width: parent.width
-                        leftPadding: 8
-                        wrapMode: Text.WordWrap
-                        text: qsTr("Group books into collections from their right-click menu.")
-                        opacity: 0.45
-                        font.pixelSize: 12
-                    }
-                }
-
-                // Words inside every book.
-                SidebarItem {
-                    Layout.fillWidth: true
-                    icon: "⌕"
-                    text: qsTr("Search all books")
-                    onClicked: win.openSearch()
-                }
-
-                // Flashcards due today.
-                SidebarItem {
-                    Layout.fillWidth: true
-                    icon: "⁂"
-                    text: qsTr("Knowledge graph")
-                    onClicked: win.openGraph("")
-                }
-
-                SidebarItem {
-                    Layout.fillWidth: true
-                    icon: "❏"
-                    text: qsTr("Review")
-                    count: cards.dueCount > 0 ? cards.dueCount : -1
-                    onClicked: win.openReview()
-                }
-
-                // The course; a dot invites a first look.
-                SidebarItem {
-                    Layout.fillWidth: true
-                    icon: "?"
-                    text: qsTr("Learn Shelf")
-                    property bool seen: library.setting("learnSeen", false)
-                    onClicked: {
-                        seen = true
-                        win.openLearn()
-                    }
-                    Rectangle {
-                        anchors.right: parent.right
-                        anchors.rightMargin: 12
-                        anchors.verticalCenter: parent.verticalCenter
-                        visible: !parent.seen
-                        width: 8
-                        height: 8
-                        radius: 4
-                        color: theme.accent
-                    }
-                }
-
-                // About Shelf, with a dot when an update is waiting.
-                SidebarItem {
-                    Layout.fillWidth: true
-                    icon: "ⓘ"
-                    text: qsTr("About Shelf")
-                    onClicked: win.openAbout()
-                    Rectangle {
-                        visible: updater.state === "available" || updater.state === "installed"
-                        anchors.right: parent.right
-                        anchors.rightMargin: 12
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 8
-                        height: 8
-                        radius: 4
-                        color: theme.accent
-                    }
-                }
-
-                // Local AI: a dot says at a glance whether it is ready.
-                SidebarItem {
-                    Layout.fillWidth: true
-                    icon: "✦"
-                    text: qsTr("Local AI")
-                    onClicked: win.openAiSettings()
-                    Rectangle {
-                        anchors.right: parent.right
-                        anchors.rightMargin: 12
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 8
-                        height: 8
-                        radius: 4
-                        color: ollama.status === "ready" ? "#6fd08c" : ollama.status === "checking" ? "#55555e" : "#f5b347"
-                    }
-                    Component.onCompleted: ollama.refresh()
-                }
-            }
-        }
 
         // Main area: toolbar and grid.
         ColumnLayout {
@@ -335,6 +170,19 @@ FocusScope {
                 }
 
                 Item { Layout.fillWidth: true }
+
+                // Which shelf or collection, so the tab works with the
+                // sidebar hidden too (both share library.shelf).
+                ComboBox {
+                    id: shelfBox
+                    readonly property var filters: page.shelves.map(f => ({ key: f.key, label: f.icon + "  " + f.label }))
+                        .concat(library.collections.map(c => ({ key: "collection:" + c, label: "◆  " + c })))
+                    Layout.preferredWidth: 190
+                    textRole: "label"
+                    model: filters
+                    currentIndex: Math.max(0, filters.findIndex(f => f.key === library.shelf))
+                    onActivated: library.shelf = filters[currentIndex].key
+                }
 
                 ComboBox {
                     id: sortBox
@@ -593,15 +441,8 @@ FocusScope {
         }
     }
 
-    Menu {
-        id: collectionMenu
-        property string name
-        Material.roundedScale: theme.radius
-        MenuItem {
-            text: qsTr("Delete collection")
-            onTriggered: library.deleteCollection(collectionMenu.name)
-        }
-    }
+
+
 
     Dialog {
         id: collectionDialog
