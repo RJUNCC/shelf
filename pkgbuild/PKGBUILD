@@ -1,5 +1,5 @@
 pkgname=shelf
-pkgver=0.1.0
+pkgver=0.2.0
 pkgrel=1
 pkgdesc='An organized library and reader for EPUB and PDF books'
 arch=('x86_64' 'aarch64')

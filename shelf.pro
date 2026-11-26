@@ -4,7 +4,7 @@ CONFIG += c++17 release
 
 # One place for the version and the GitHub repository the updater checks
 # (pkgbuild/PKGBUILD and windows/shelf.iss carry the version too).
-VERSION = 0.1.0
+VERSION = 0.2.0
 SHELF_REPO = RJUNCC/shelf
 DEFINES += SHELF_VERSION=\\\"$$VERSION\\\" SHELF_REPO=\\\"$$SHELF_REPO\\\"
 TARGET = shelf
